@@ -44,7 +44,7 @@ div[data-testid="stRadio"] > label {
 div[data-testid="stRadio"] > div {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.4rem;
 }
 div[data-testid="stRadio"] div[data-testid="stMarkdownContainer"] p {
@@ -56,7 +56,7 @@ div[data-testid="stRadio"] label[data-testid="stWidgetLabel"] {
     display: none;
 }
 div[data-testid="stRadio"] > div > label {
-    flex: 1;
+    flex: 0 1 calc(50% - 0.2rem);
     min-width: 0;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
