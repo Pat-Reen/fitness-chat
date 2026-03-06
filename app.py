@@ -477,31 +477,45 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    goal = st.radio(
-        "Fitness goal",
-        ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"],
-        index=["Build Muscle", "Weight Loss", "Endurance", "General Fitness"].index(
-            st.session_state.goal
-        ),
-        horizontal=True,
-    )
-    experience = st.radio(
-        "Experience level",
-        ["Beginner", "Intermediate", "Advanced"],
-        index=["Beginner", "Intermediate", "Advanced"].index(st.session_state.experience),
-        horizontal=True,
-    )
-    duration = st.radio(
-        "Session duration",
-        ["30 min", "45 min", "60 min", "90 min"],
-        index=["30 min", "45 min", "60 min", "90 min"].index(st.session_state.duration),
-        horizontal=True,
-    )
-    restrictions = st.text_input(
-        "Injuries or limitations",
-        value=st.session_state.restrictions,
-        placeholder="Leave blank if none",
-    )
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Goal**")
+        goal = st.radio(
+            "Fitness goal",
+            ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"],
+            index=["Build Muscle", "Weight Loss", "Endurance", "General Fitness"].index(
+                st.session_state.goal
+            ),
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+    with col2:
+        st.markdown("**Level**")
+        experience = st.radio(
+            "Experience level",
+            ["Beginner", "Intermediate", "Advanced"],
+            index=["Beginner", "Intermediate", "Advanced"].index(st.session_state.experience),
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+    col3, col4 = st.columns(2)
+    with col3:
+        st.markdown("**Duration**")
+        duration = st.radio(
+            "Session duration",
+            ["30 min", "45 min", "60 min", "90 min"],
+            index=["30 min", "45 min", "60 min", "90 min"].index(st.session_state.duration),
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+    with col4:
+        restrictions = st.text_input(
+            "Injuries or limitations",
+            value=st.session_state.restrictions,
+            placeholder="Leave blank if none",
+        )
+
     mode = st.radio(
         "Workout mode",
         ["By muscle group", "By equipment"],
@@ -561,6 +575,26 @@ def render_selection():
         f"Goal: **{st.session_state.goal}** · "
         f"Duration: **{st.session_state.duration}**"
     )
+
+    sel_col, clr_col, _ = st.columns([1, 1, 4])
+    with sel_col:
+        if st.button("Select all"):
+            all_exercises: list[str] = []
+            for group in focus_groups:
+                all_exercises.extend(EXERCISES.get(group, []))
+            for ex in all_exercises:
+                st.session_state[f"focus_{ex}"] = True
+                st.session_state[f"focus2_{ex}"] = True
+            st.session_state.selected = list(dict.fromkeys(all_exercises))
+            st.rerun()
+    with clr_col:
+        if st.button("Clear all"):
+            for group in focus_groups:
+                for ex in EXERCISES.get(group, []):
+                    st.session_state[f"focus_{ex}"] = False
+                    st.session_state[f"focus2_{ex}"] = False
+            st.session_state.selected = []
+            st.rerun()
 
     selected: set[str] = set(st.session_state.selected)
     rendered: set[str] = set()
