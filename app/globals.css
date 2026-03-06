@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --accent: #166534;
+  --accent-light: #dcfce7;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --accent-light: #14532d;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Workout markdown output */
+.workout-prose h1 { font-size: 1.4rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
+.workout-prose h2 { font-size: 1.15rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #166534; }
+.workout-prose h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.3rem; color: #166534; }
+.workout-prose p  { margin: 0.5rem 0; line-height: 1.65; }
+.workout-prose ul { list-style: disc; padding-left: 1.4rem; margin: 0.4rem 0; }
+.workout-prose ol { list-style: decimal; padding-left: 1.4rem; margin: 0.4rem 0; }
+.workout-prose li { margin: 0.2rem 0; line-height: 1.6; }
+.workout-prose strong { font-weight: 600; }
+.workout-prose hr { border-color: #e5e7eb; margin: 1rem 0; }
+
+/* Tables */
+.workout-prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.85rem; }
+.workout-prose thead tr { background: #f3f4f6; }
+.workout-prose th { text-align: left; font-weight: 600; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; }
+.workout-prose td { padding: 0.45rem 0.75rem; border: 1px solid #e5e7eb; vertical-align: top; }
+.workout-prose tbody tr:nth-child(even) { background: #f9fafb; }
+
+@media (prefers-color-scheme: dark) {
+  .workout-prose h2 { color: #4ade80; }
+  .workout-prose h3 { color: #4ade80; }
+  .workout-prose hr { border-color: #374151; }
+  .workout-prose thead tr { background: #1f2937; }
+  .workout-prose th { border-color: #374151; }
+  .workout-prose td { border-color: #374151; }
+  .workout-prose tbody tr:nth-child(even) { background: #111827; }
+}

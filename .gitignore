@@ -14,7 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -151,6 +150,12 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Next.js
+.next/
+node_modules/
+next-env.d.ts
+tsconfig.tsbuildinfo
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

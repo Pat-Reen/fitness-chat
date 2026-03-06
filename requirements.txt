@@ -1,3 +1,0 @@
-anthropic
-streamlit
-python-dotenv
