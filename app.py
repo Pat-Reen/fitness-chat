@@ -57,10 +57,10 @@ div[data-testid="stRadio"] label[data-testid="stWidgetLabel"] {
 }
 div[data-testid="stRadio"] > div > label {
     flex: 1;
-    min-width: 80px;
+    min-width: 0;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
-    padding: 0.45rem 0.75rem;
+    padding: 0.45rem 0.5rem;
     cursor: pointer;
     text-align: center;
     font-size: 0.85rem;
