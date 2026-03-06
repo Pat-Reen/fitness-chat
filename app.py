@@ -44,7 +44,7 @@ div[data-testid="stRadio"] > label {
 div[data-testid="stRadio"] > div {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.4rem;
 }
 div[data-testid="stRadio"] div[data-testid="stMarkdownContainer"] p {
