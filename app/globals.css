@@ -43,7 +43,7 @@ body {
 .workout-prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.85rem; }
 .workout-prose thead tr { background: #f3f4f6; }
 .workout-prose th { text-align: left; font-weight: 600; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; }
-.workout-prose td { padding: 0.45rem 0.75rem; border: 1px solid #e5e7eb; vertical-align: top; }
+.workout-prose td { text-align: left; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; vertical-align: top; }
 .workout-prose tbody tr:nth-child(even) { background: #f9fafb; }
 
 @media (prefers-color-scheme: dark) {
