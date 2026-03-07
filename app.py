@@ -394,7 +394,7 @@ def init_state():
         "equipment": [],
         "workout": "",
         "variation": 0,
-        "goal": "Build Muscle",  # must match a value in the segmented_control options
+        "goal": "Muscle",  # must match a value in the segmented_control options
         "experience": "Intermediate",
         "restrictions": "",
         "duration": "60 min",
@@ -453,7 +453,7 @@ def render_preferences():
     st.header("Your Preferences")
 
     st.segmented_control(
-        "Fitness goal", ["Build Muscle", "Weight Loss", "Endurance", "General"],
+        "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
         key="goal",
     )
     st.segmented_control(
