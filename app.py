@@ -495,23 +495,20 @@ def render_selection():
         f"Duration: **{st.session_state.duration}**"
     )
 
-    sel_col, clr_col = st.columns(2)
-    with sel_col:
-        if st.button("All", use_container_width=True):
-            all_exercises: list[str] = []
-            for group in focus_groups:
-                all_exercises.extend(EXERCISES.get(group, []))
+    all_exercises: list[str] = list(dict.fromkeys(
+        ex for group in focus_groups for ex in EXERCISES.get(group, [])
+    ))
+    all_selected = set(all_exercises) <= set(st.session_state.selected)
+    if st.button("Clear all" if all_selected else "Select all", use_container_width=True):
+        if all_selected:
+            for ex in all_exercises:
+                st.session_state[f"focus_{ex}"] = False
+            st.session_state.selected = []
+        else:
             for ex in all_exercises:
                 st.session_state[f"focus_{ex}"] = True
-            st.session_state.selected = list(dict.fromkeys(all_exercises))
-            st.rerun()
-    with clr_col:
-        if st.button("Clear", use_container_width=True):
-            for group in focus_groups:
-                for ex in EXERCISES.get(group, []):
-                    st.session_state[f"focus_{ex}"] = False
-            st.session_state.selected = []
-            st.rerun()
+            st.session_state.selected = all_exercises
+        st.rerun()
 
     selected: set[str] = set(st.session_state.selected)
     rendered: set[str] = set()
@@ -563,19 +560,17 @@ def render_equipment():
         caption = f"Focus: **{', '.join(focus_groups)}** · " + caption
     st.caption(caption)
 
-    sel_col, clr_col = st.columns(2)
-    with sel_col:
-        if st.button("All", use_container_width=True):
-            for item in EQUIPMENT:
-                st.session_state[f"equip_{item}"] = True
-            st.session_state.equipment = list(EQUIPMENT)
-            st.rerun()
-    with clr_col:
-        if st.button("Clear", use_container_width=True):
+    all_selected = set(EQUIPMENT) <= set(st.session_state.equipment)
+    if st.button("Clear all" if all_selected else "Select all", use_container_width=True):
+        if all_selected:
             for item in EQUIPMENT:
                 st.session_state[f"equip_{item}"] = False
             st.session_state.equipment = []
-            st.rerun()
+        else:
+            for item in EQUIPMENT:
+                st.session_state[f"equip_{item}"] = True
+            st.session_state.equipment = list(EQUIPMENT)
+        st.rerun()
 
     checked: set[str] = set(st.session_state.equipment)
     for item in EQUIPMENT:
