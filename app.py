@@ -213,11 +213,22 @@ div[data-testid="stMarkdownContainer"] tbody tr:nth-child(even) {
 div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom: 0.25rem; }
 
 /* ------------------------------------------------------------------ */
-/* Segmented control — full width                                      */
+/* Segmented control — full width, no wrap                            */
 /* ------------------------------------------------------------------ */
 div[data-testid="stSegmentedControl"] { width: 100% !important; }
-div[data-testid="stSegmentedControl"] > div { width: 100% !important; display: flex !important; }
-div[data-testid="stSegmentedControl"] button { flex: 1 1 0 !important; }
+div[data-testid="stSegmentedControl"] > div,
+div[data-testid="stSegmentedControl"] > div > div {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+}
+div[data-testid="stSegmentedControl"] button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
 </style>
 """
 
