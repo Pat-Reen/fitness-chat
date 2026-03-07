@@ -225,7 +225,11 @@ div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom
 """
 
 load_dotenv()
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+_api_key = os.environ.get("ANTHROPIC_API_KEY")
+if not _api_key:
+    st.error("ANTHROPIC_API_KEY environment variable is not set.")
+    st.stop()
+client = anthropic.Anthropic(api_key=_api_key)
 
 # ---------------------------------------------------------------------------
 # Data
@@ -290,13 +294,27 @@ EQUIPMENT = [
 ]
 
 # ---------------------------------------------------------------------------
+# Input sanitisation
+# ---------------------------------------------------------------------------
+
+def sanitise_restrictions(text: str) -> str:
+    """Strip characters that could break prompt structure, limit length."""
+    # Remove newlines, carriage returns, and null bytes
+    cleaned = text.replace("\n", " ").replace("\r", " ").replace("\x00", "")
+    # Collapse multiple spaces
+    cleaned = " ".join(cleaned.split())
+    # Hard cap at 200 characters
+    return cleaned[:200]
+
+# ---------------------------------------------------------------------------
 # Claude helpers
 # ---------------------------------------------------------------------------
 
 def build_workout_stream(goal, experience, restrictions, duration, focus_groups, exercises, variation):
+    restrictions = sanitise_restrictions(restrictions)
     restriction_line = (
         f"The user has these restrictions/injuries: {restrictions}. Provide modifications where relevant."
-        if restrictions.strip() else "The user has no injuries or limitations."
+        if restrictions else "The user has no injuries or limitations."
     )
     variation_line = (
         f"\nThis is variation #{variation} — make it meaningfully different "
@@ -333,9 +351,10 @@ def build_workout_stream(goal, experience, restrictions, duration, focus_groups,
 
 
 def build_equipment_workout_stream(goal, experience, restrictions, duration, equipment, focus_groups, variation):
+    restrictions = sanitise_restrictions(restrictions)
     restriction_line = (
         f"The user has these restrictions/injuries: {restrictions}. Provide modifications where relevant."
-        if restrictions.strip() else "The user has no injuries or limitations."
+        if restrictions else "The user has no injuries or limitations."
     )
     variation_line = (
         f"\nThis is variation #{variation} — make it meaningfully different "
