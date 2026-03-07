@@ -211,6 +211,13 @@ div[data-testid="stMarkdownContainer"] tbody tr:nth-child(even) {
 
 /* Subheader spacing */
 div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom: 0.25rem; }
+
+/* ------------------------------------------------------------------ */
+/* Segmented control — full width                                      */
+/* ------------------------------------------------------------------ */
+div[data-testid="stSegmentedControl"] { width: 100% !important; }
+div[data-testid="stSegmentedControl"] > div { width: 100% !important; display: flex !important; }
+div[data-testid="stSegmentedControl"] button { flex: 1 1 0 !important; }
 </style>
 """
 
@@ -394,7 +401,7 @@ def init_state():
         "equipment": [],
         "workout": "",
         "variation": 0,
-        "goal": "Build Muscle",
+        "goal": "Build Muscle",  # must match a value in the segmented_control options
         "experience": "Intermediate",
         "restrictions": "",
         "duration": "60 min",
@@ -453,7 +460,7 @@ def render_preferences():
     st.header("Your Preferences")
 
     st.segmented_control(
-        "Fitness goal", ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"],
+        "Fitness goal", ["Build Muscle", "Weight Loss", "Endurance", "General"],
         key="goal",
     )
     st.segmented_control(
@@ -526,7 +533,7 @@ def render_selection():
 
     sel_col, clr_col = st.columns(2)
     with sel_col:
-        if st.button("Select all", use_container_width=True):
+        if st.button("All", use_container_width=True):
             all_exercises: list[str] = []
             for group in focus_groups:
                 all_exercises.extend(EXERCISES.get(group, []))
@@ -536,7 +543,7 @@ def render_selection():
             st.session_state.selected = list(dict.fromkeys(all_exercises))
             st.rerun()
     with clr_col:
-        if st.button("Clear all", use_container_width=True):
+        if st.button("Clear", use_container_width=True):
             for group in focus_groups:
                 for ex in EXERCISES.get(group, []):
                     st.session_state[f"focus_{ex}"] = False
@@ -602,13 +609,13 @@ def render_equipment():
 
     sel_col, clr_col = st.columns(2)
     with sel_col:
-        if st.button("Select all", use_container_width=True):
+        if st.button("All", use_container_width=True):
             for item in EQUIPMENT:
                 st.session_state[f"equip_{item}"] = True
             st.session_state.equipment = list(EQUIPMENT)
             st.rerun()
     with clr_col:
-        if st.button("Clear all", use_container_width=True):
+        if st.button("Clear", use_container_width=True):
             for item in EQUIPMENT:
                 st.session_state[f"equip_{item}"] = False
             st.session_state.equipment = []
