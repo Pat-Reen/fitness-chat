@@ -380,7 +380,7 @@ def init_state():
 # ---------------------------------------------------------------------------
 
 def render_step_indicator():
-    mode = st.session_state.mode
+    mode = st.session_state.mode or "By muscle group"
     stage = st.session_state.stage
     if mode == "By muscle group":
         steps  = ["preferences", "selection", "workout"]
@@ -622,7 +622,7 @@ def render_workout():
     st.markdown(PRINT_CSS, unsafe_allow_html=True)
     st.header("Your Workout")
 
-    equipment_mode = st.session_state.mode == "By equipment"
+    equipment_mode = (st.session_state.mode or "By muscle group") == "By equipment"
     caption_parts = []
     if st.session_state.focus_groups:
         caption_parts.append(f"Focus: **{', '.join(st.session_state.focus_groups)}**")
