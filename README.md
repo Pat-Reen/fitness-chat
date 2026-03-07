@@ -1,15 +1,15 @@
 # fitness-chat
 
-A personalized AI fitness companion that generates tailored workout plans based on your goals, experience level, and preferred workout type.
+A personalized AI fitness companion that generates tailored workout plans based on your goals, experience level, and available equipment.
 
 ## Features
 
-- **Structured workout generation** — select your workout length and focus type, then generate a plan with one click
+- **Preference-based setup** — configure your fitness goal, experience level, session duration, and any injuries or limitations
+- **Two workout modes:**
+  - **By muscle group** — select focus areas, then pick specific exercises from a curated list
+  - **By equipment** — select what equipment you have available and let Claude design the session
+- **Structured workout generation** — workouts are organized into blocks of 3–4 alternating exercises, defaulting to 20 reps per set
 - **Generate Different Workout** — get a meaningfully varied alternative without changing your settings
-- **Tailored prompts by workout type:**
-  - **Freeweights / Circuit** — exercises with sets, reps, form tips, muscles worked, and equipment needed
-  - **Running / Indoor Cardio** — structured session plan with warm-up, main intervals/segments, and cool-down
-- **User profile** — personalizes output based on fitness goal, experience level, and any injuries or limitations
 
 ## Technologies
 
