@@ -608,7 +608,7 @@ PRINT_CSS = """
 PRINT_BUTTON_HTML = """
 <style>
 button.print-btn {
-    padding: 0.4rem 1rem; background: #f9fafb; border: 1px solid #e5e7eb;
+    width: 100%; padding: 0.4rem 1rem; background: #f9fafb; border: 1px solid #e5e7eb;
     border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem;
     color: #374151; font-family: 'Inter', sans-serif; font-weight: 500;
 }
@@ -655,24 +655,22 @@ def render_workout():
         st.markdown(st.session_state.workout)
 
     st.divider()
-    col1, col2, col3, col4 = st.columns([2, 1.5, 1.5, 1.5])
-    with col1:
-        if st.button("Regenerate", type="primary"):
-            st.session_state.variation += 1
-            st.session_state.workout   = ""
-            st.rerun()
-    with col2:
+    if st.button("Regenerate", type="primary", use_container_width=True):
+        st.session_state.variation += 1
+        st.session_state.workout = ""
+        st.rerun()
+    nav_col, print_col = st.columns(2)
+    with nav_col:
         edit_stage = "equipment" if equipment_mode else "selection"
         edit_label = "← Edit Equipment" if equipment_mode else "← Edit Exercises"
-        if st.button(edit_label):
+        if st.button(edit_label, use_container_width=True):
             st.session_state.stage = edit_stage
             st.rerun()
-    with col3:
-        if st.button("← Start Over"):
+    with print_col:
+        if st.button("← Start Over", use_container_width=True):
             st.session_state.stage = "preferences"
             st.rerun()
-    with col4:
-        components.html(PRINT_BUTTON_HTML, height=40)
+    components.html(PRINT_BUTTON_HTML, height=40)
 
 # ---------------------------------------------------------------------------
 # Main
