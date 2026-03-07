@@ -431,15 +431,18 @@ def render_preferences():
 
     st.segmented_control(
         "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
-        key="goal",
+        key="_wgt_goal",
+        default=st.session_state.get("goal"),
     )
     st.segmented_control(
         "Experience level", ["Beginner", "Intermediate", "Advanced"],
-        key="experience",
+        key="_wgt_experience",
+        default=st.session_state.get("experience"),
     )
     st.segmented_control(
         "Session duration", ["30 min", "45 min", "60 min", "90 min"],
-        key="duration",
+        key="_wgt_duration",
+        default=st.session_state.get("duration"),
     )
     restrictions = st.text_input(
         "Injuries or limitations",
@@ -448,10 +451,11 @@ def render_preferences():
     )
     st.segmented_control(
         "Workout mode", ["By muscle group", "By equipment"],
-        key="mode",
+        key="_wgt_mode",
+        default=st.session_state.get("mode"),
     )
 
-    mode = st.session_state.mode or "By muscle group"
+    mode = st.session_state._wgt_mode or "By muscle group"
     if mode == "By muscle group":
         focus_groups = st.multiselect(
             "Focus areas (pick 1–3)",
@@ -470,11 +474,11 @@ def render_preferences():
         btn_disabled = False
 
     if st.button(btn_label, type="primary", disabled=btn_disabled):
-        # Persist widget-managed values — Streamlit clears segmented_control keys
+        # Persist widget-managed values — segmented_control resets its key to None
         # when the widget is not rendered (i.e. after navigating away from this page)
-        st.session_state.goal         = st.session_state.goal or "Muscle"
-        st.session_state.experience   = st.session_state.experience or "Intermediate"
-        st.session_state.duration     = st.session_state.duration or "60 min"
+        st.session_state.goal         = st.session_state._wgt_goal or "Muscle"
+        st.session_state.experience   = st.session_state._wgt_experience or "Intermediate"
+        st.session_state.duration     = st.session_state._wgt_duration or "60 min"
         st.session_state.mode         = mode
         st.session_state.restrictions = restrictions
         st.session_state.focus_groups = focus_groups
