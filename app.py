@@ -33,54 +33,13 @@ h3 { color: #166534 !important; font-weight: 600 !important; font-size: 1rem !im
 .stCaptionContainer p { color: #6b7280 !important; font-size: 0.85rem !important; }
 
 /* ------------------------------------------------------------------ */
-/* Radio buttons → pill button group                                   */
+/* Pill select labels                                                  */
 /* ------------------------------------------------------------------ */
-div[data-testid="stRadio"] > label {
+.pill-label {
     font-size: 0.8rem;
     font-weight: 600;
     color: #374151;
     margin-bottom: 0.35rem;
-}
-div[data-testid="stRadio"] > div {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-}
-div[data-testid="stRadio"] div[data-testid="stMarkdownContainer"] p {
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-/* Each radio option */
-div[data-testid="stRadio"] label[data-testid="stWidgetLabel"] {
-    display: none;
-}
-div[data-testid="stRadio"] > div > label {
-    flex: 0 0 calc(50% - 0.2rem);
-    max-width: calc(50% - 0.2rem);
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    padding: 0.45rem 0.75rem;
-    cursor: pointer;
-    text-align: center;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #374151;
-    background: #fff;
-    transition: border-color 0.15s, background 0.15s;
-}
-div[data-testid="stRadio"] > div > label:hover {
-    border-color: #9ca3af;
-}
-div[data-testid="stRadio"] > div > label:has(input:checked) {
-    border-color: #166534 !important;
-    background: #f0fdf4 !important;
-    color: #166534 !important;
-    font-weight: 600 !important;
-}
-/* Hide the radio circle */
-div[data-testid="stRadio"] > div > label > div:first-child {
-    display: none !important;
 }
 
 /* ------------------------------------------------------------------ */
@@ -436,6 +395,28 @@ def init_state():
             st.session_state[key] = value
 
 # ---------------------------------------------------------------------------
+# Pill select helper (replaces st.radio — works reliably on mobile)
+# ---------------------------------------------------------------------------
+
+def pill_select(label: str, key: str, options: list[str]) -> str:
+    """Render options as 2-per-row pill buttons backed by session state."""
+    st.markdown(f'<div class="pill-label">{label}</div>', unsafe_allow_html=True)
+    rows = [options[i:i + 2] for i in range(0, len(options), 2)]
+    for row in rows:
+        cols = st.columns(len(row))
+        for col, option in zip(cols, row):
+            selected = st.session_state.get(key) == option
+            if col.button(
+                option,
+                key=f"pill_{key}_{option}",
+                type="primary" if selected else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state[key] = option
+                st.rerun()
+    return st.session_state.get(key, options[0])
+
+# ---------------------------------------------------------------------------
 # Step indicator
 # ---------------------------------------------------------------------------
 
@@ -483,45 +464,30 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    goal = st.radio(
-        "Fitness goal",
-        ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"],
-        index=["Build Muscle", "Weight Loss", "Endurance", "General Fitness"].index(
-            st.session_state.goal
-        ),
-        horizontal=True,
-    )
-    experience = st.radio(
-        "Experience level",
-        ["Beginner", "Intermediate", "Advanced"],
-        index=["Beginner", "Intermediate", "Advanced"].index(st.session_state.experience),
-        horizontal=True,
-    )
-    duration = st.radio(
-        "Session duration",
-        ["30 min", "45 min", "60 min", "90 min"],
-        index=["30 min", "45 min", "60 min", "90 min"].index(st.session_state.duration),
-        horizontal=True,
-    )
+    pill_select("Fitness goal", "goal",
+                ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"])
+    pill_select("Experience level", "experience",
+                ["Beginner", "Intermediate", "Advanced"])
+    pill_select("Session duration", "duration",
+                ["30 min", "45 min", "60 min", "90 min"])
+
     restrictions = st.text_input(
         "Injuries or limitations",
         value=st.session_state.restrictions,
         placeholder="Leave blank if none",
     )
-    mode = st.radio(
-        "Workout mode",
-        ["By muscle group", "By equipment"],
-        index=["By muscle group", "By equipment"].index(st.session_state.mode),
-        horizontal=True,
-    )
 
+    pill_select("Workout mode", "mode",
+                ["By muscle group", "By equipment"])
+
+    mode = st.session_state.mode
     if mode == "By muscle group":
         focus_groups = st.multiselect(
             "Focus areas (pick 1–3)",
             options=MUSCLE_GROUPS,
             default=st.session_state.focus_groups or [],
         )
-        btn_label   = "Select Exercises →"
+        btn_label    = "Select Exercises →"
         btn_disabled = len(focus_groups) == 0
     else:
         focus_groups = st.multiselect(
@@ -529,15 +495,11 @@ def render_preferences():
             options=MUSCLE_GROUPS,
             default=st.session_state.focus_groups or [],
         )
-        btn_label   = "Select Equipment →"
+        btn_label    = "Select Equipment →"
         btn_disabled = False
 
     if st.button(btn_label, type="primary", disabled=btn_disabled):
-        st.session_state.goal         = goal
-        st.session_state.experience   = experience
         st.session_state.restrictions = restrictions
-        st.session_state.duration     = duration
-        st.session_state.mode         = mode
         st.session_state.focus_groups = focus_groups
         st.session_state.workout      = ""
 
@@ -570,7 +532,7 @@ def render_selection():
 
     sel_col, clr_col, _ = st.columns([1, 1, 4])
     with sel_col:
-        if st.button("Select all"):
+        if st.button("Select all", use_container_width=True):
             all_exercises: list[str] = []
             for group in focus_groups:
                 all_exercises.extend(EXERCISES.get(group, []))
@@ -580,7 +542,7 @@ def render_selection():
             st.session_state.selected = list(dict.fromkeys(all_exercises))
             st.rerun()
     with clr_col:
-        if st.button("Clear all"):
+        if st.button("Clear all", use_container_width=True):
             for group in focus_groups:
                 for ex in EXERCISES.get(group, []):
                     st.session_state[f"focus_{ex}"] = False
@@ -646,13 +608,13 @@ def render_equipment():
 
     sel_col, clr_col, _ = st.columns([1, 1, 4])
     with sel_col:
-        if st.button("Select all"):
+        if st.button("Select all", use_container_width=True):
             for item in EQUIPMENT:
                 st.session_state[f"equip_{item}"] = True
             st.session_state.equipment = list(EQUIPMENT)
             st.rerun()
     with clr_col:
-        if st.button("Clear all"):
+        if st.button("Clear all", use_container_width=True):
             for item in EQUIPMENT:
                 st.session_state[f"equip_{item}"] = False
             st.session_state.equipment = []
