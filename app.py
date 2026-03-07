@@ -296,10 +296,12 @@ def build_workout_stream(goal, experience, restrictions, duration, focus_groups,
         f"1. Warm-up: 10–20 minutes on the rowing machine or stationary/spin bike "
         f"(the user runs on non-gym days so do NOT suggest treadmill/running as a warm-up)\n"
         f"2. Main workout — order exercises logically for a real gym session:\n"
+        f"   - Default to 20 reps per set unless the movement type demands otherwise\n"
+        f"   - Group the workout into blocks of 3–4 exercises\n"
+        f"   - Within each block, alternate between exercises (circuit-style) rather than completing all sets of one before moving on\n"
         f"   - Lead with the most demanding compound movements\n"
         f"   - Group exercises by area of the gym to minimise equipment changes and walking\n"
         f"   - Finish with isolation or machine work, then mat/core exercises last\n"
-        f"   - You may superset antagonist muscle groups (e.g. chest + back) where it makes sense\n"
         f"   - For each exercise: sets × reps (or duration), rest period\n"
         f"3. A brief cool-down note"
     )
@@ -337,15 +339,16 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
         f"{variation_line}\n\n"
         f"Focus: {focus_line}\n\n"
         f"Sets and reps:\n"
-        f"- Default to 4 sets × 20 reps for most exercises unless the movement type demands otherwise\n"
-        f"  (e.g. heavy compound lifts or timed holds are fine to adjust)\n"
-        f"- Keep sets and reps consistent across all exercises within the same workout block\n\n"
+        f"- Default to 20 reps per set for most exercises unless the movement type demands otherwise\n"
+        f"  (e.g. heavy compound lifts or timed holds are fine to adjust)\n\n"
         f"IMPORTANT: The entire session — warm-up, all sets, all rest periods, and cool-down — "
         f"must fit within {duration}. Do not over-program.\n\n"
         f"Format the plan in markdown with:\n"
         f"1. Warm-up: 5–15 min using available cardio equipment (rowing machine or skipping rope "
         f"if available; otherwise light bodyweight movement). Do NOT suggest running/treadmill.\n"
         f"2. Main workout — choose appropriate exercises for the equipment, ordered logically:\n"
+        f"   - Group the workout into blocks of 3–4 exercises\n"
+        f"   - Within each block, alternate between exercises (circuit-style) rather than completing all sets of one before moving on\n"
         f"   - Lead with the most demanding compound movements\n"
         f"   - For each exercise: sets × reps (or duration), rest period\n"
         f"3. Cool-down/stretch note (mention foam roller if available)"
@@ -505,10 +508,14 @@ def render_preferences():
 def render_selection():
     focus_groups = st.session_state.focus_groups
     st.header("Choose Your Exercises")
+    restrictions = st.session_state.restrictions
+    limits_part = f" · Limits: **{restrictions[:30]}{'…' if len(restrictions) > 30 else ''}**" if restrictions else ""
     st.caption(
         f"Focus: **{', '.join(focus_groups)}** · "
         f"Goal: **{st.session_state.goal}** · "
+        f"Level: **{st.session_state.experience}** · "
         f"Duration: **{st.session_state.duration}**"
+        f"{limits_part}"
     )
 
     all_exercises: list[str] = list(dict.fromkeys(
@@ -534,7 +541,9 @@ def render_selection():
         exercises = [ex for ex in EXERCISES.get(group, []) if ex not in rendered]
         rendered.update(exercises)
         for ex in exercises:
-            if st.checkbox(ex, value=(ex in selected), key=f"focus_{ex}"):
+            if f"focus_{ex}" not in st.session_state:
+                st.session_state[f"focus_{ex}"] = ex in selected
+            if st.checkbox(ex, key=f"focus_{ex}"):
                 selected.add(ex)
             else:
                 selected.discard(ex)
@@ -547,7 +556,9 @@ def render_selection():
                 exercises = [ex for ex in EXERCISES.get(group, []) if ex not in rendered]
                 rendered.update(exercises)
                 for ex in exercises:
-                    if st.checkbox(ex, value=(ex in selected), key=f"other_{ex}"):
+                    if f"other_{ex}" not in st.session_state:
+                        st.session_state[f"other_{ex}"] = ex in selected
+                    if st.checkbox(ex, key=f"other_{ex}"):
                         selected.add(ex)
                     else:
                         selected.discard(ex)
@@ -572,7 +583,14 @@ def render_selection():
 def render_equipment():
     st.header("Your Equipment")
     focus_groups = st.session_state.focus_groups
-    caption = f"Goal: **{st.session_state.goal}** · Duration: **{st.session_state.duration}**"
+    restrictions = st.session_state.restrictions
+    limits_part = f" · Limits: **{restrictions[:30]}{'…' if len(restrictions) > 30 else ''}**" if restrictions else ""
+    caption = (
+        f"Goal: **{st.session_state.goal}** · "
+        f"Level: **{st.session_state.experience}** · "
+        f"Duration: **{st.session_state.duration}**"
+        f"{limits_part}"
+    )
     if focus_groups:
         caption = f"Focus: **{', '.join(focus_groups)}** · " + caption
     st.caption(caption)
@@ -591,7 +609,9 @@ def render_equipment():
 
     checked: set[str] = set(st.session_state.equipment)
     for item in EQUIPMENT:
-        if st.checkbox(item, value=(item in checked), key=f"equip_{item}"):
+        if f"equip_{item}" not in st.session_state:
+            st.session_state[f"equip_{item}"] = item in checked
+        if st.checkbox(item, key=f"equip_{item}"):
             checked.add(item)
         else:
             checked.discard(item)
