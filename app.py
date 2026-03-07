@@ -365,6 +365,7 @@ def init_state():
     defaults = {
         "stage": "preferences",
         "mode": "By muscle group",
+        "workout_mode": "muscle",
         "focus_groups": [],
         "selected": [],
         "equipment": [],
@@ -547,9 +548,10 @@ def render_selection():
     col1, col2 = st.columns([3, 1])
     with col1:
         if st.button("Build Workout →", type="primary", disabled=len(selected) == 0):
-            st.session_state.workout   = ""
-            st.session_state.variation = 0
-            st.session_state.stage     = "workout"
+            st.session_state.workout_mode = "muscle"
+            st.session_state.workout      = ""
+            st.session_state.variation    = 0
+            st.session_state.stage        = "workout"
             st.rerun()
     with col2:
         if st.button("← Back"):
@@ -590,8 +592,9 @@ def render_equipment():
     col1, col2 = st.columns([3, 1])
     with col1:
         if st.button("Build Workout →", type="primary", disabled=len(checked) == 0):
-            st.session_state.workout = ""
-            st.session_state.stage   = "workout"
+            st.session_state.workout_mode = "equipment"
+            st.session_state.workout      = ""
+            st.session_state.stage        = "workout"
             st.rerun()
     with col2:
         if st.button("← Back"):
@@ -627,7 +630,7 @@ def render_workout():
     st.markdown(PRINT_CSS, unsafe_allow_html=True)
     st.header("Your Workout")
 
-    equipment_mode = (st.session_state.mode or "By muscle group") == "By equipment"
+    equipment_mode = st.session_state.workout_mode == "equipment"
     caption_parts = []
     if st.session_state.focus_groups:
         caption_parts.append(f"Focus: **{', '.join(st.session_state.focus_groups)}**")
