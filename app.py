@@ -33,16 +33,6 @@ h3 { color: #166534 !important; font-weight: 600 !important; font-size: 1rem !im
 .stCaptionContainer p { color: #6b7280 !important; font-size: 0.85rem !important; }
 
 /* ------------------------------------------------------------------ */
-/* Pill select labels                                                  */
-/* ------------------------------------------------------------------ */
-.pill-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.35rem;
-}
-
-/* ------------------------------------------------------------------ */
 /* Selectbox                                                           */
 /* ------------------------------------------------------------------ */
 div[data-testid="stSelectbox"] label {
@@ -413,27 +403,6 @@ def init_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
-# ---------------------------------------------------------------------------
-# Pill select helper (replaces st.radio — works reliably on mobile)
-# ---------------------------------------------------------------------------
-
-def pill_select(label: str, key: str, options: list[str]) -> str:
-    """Render options as 2-per-row pill buttons backed by session state."""
-    st.markdown(f'<div class="pill-label">{label}</div>', unsafe_allow_html=True)
-    rows = [options[i:i + 2] for i in range(0, len(options), 2)]
-    for row in rows:
-        cols = st.columns(len(row))
-        for col, option in zip(cols, row):
-            selected = st.session_state.get(key) == option
-            if col.button(
-                option,
-                key=f"pill_{key}_{option}",
-                type="primary" if selected else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state[key] = option
-                st.rerun()
-    return st.session_state.get(key, options[0])
 
 # ---------------------------------------------------------------------------
 # Step indicator
@@ -483,21 +452,29 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    pill_select("Fitness goal", "goal",
-                ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"])
-    pill_select("Experience level", "experience",
-                ["Beginner", "Intermediate", "Advanced"])
-    pill_select("Session duration", "duration",
-                ["30 min", "45 min", "60 min", "90 min"])
+    st.segmented_control(
+        "Fitness goal", ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"],
+        key="goal",
+    )
+    st.segmented_control(
+        "Experience level", ["Beginner", "Intermediate", "Advanced"],
+        key="experience",
+    )
+    st.segmented_control(
+        "Session duration", ["30 min", "45 min", "60 min", "90 min"],
+        key="duration",
+    )
     restrictions = st.text_input(
         "Injuries or limitations",
         value=st.session_state.restrictions,
         placeholder="Leave blank if none",
     )
-    pill_select("Workout mode", "mode",
-                ["By muscle group", "By equipment"])
+    st.segmented_control(
+        "Workout mode", ["By muscle group", "By equipment"],
+        key="mode",
+    )
 
-    mode = st.session_state.mode
+    mode = st.session_state.mode or "By muscle group"
     if mode == "By muscle group":
         focus_groups = st.multiselect(
             "Focus areas (pick 1–3)",
