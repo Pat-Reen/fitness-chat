@@ -33,20 +33,6 @@ h3 { color: #166534 !important; font-weight: 600 !important; font-size: 1rem !im
 .stCaptionContainer p { color: #6b7280 !important; font-size: 0.85rem !important; }
 
 /* ------------------------------------------------------------------ */
-/* Selectbox                                                           */
-/* ------------------------------------------------------------------ */
-div[data-testid="stSelectbox"] label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #374151;
-}
-div[data-testid="stSelectbox"] > div > div {
-    border-radius: 0.5rem !important;
-    border-color: #e5e7eb !important;
-    font-size: 0.875rem;
-}
-
-/* ------------------------------------------------------------------ */
 /* Multiselect → styled tags                                           */
 /* ------------------------------------------------------------------ */
 div[data-testid="stMultiSelect"] label {
@@ -178,36 +164,21 @@ hr { border-color: #e5e7eb !important; margin: 1rem 0 !important; }
 .step-connector.pending { background: #e5e7eb; }
 
 /* ------------------------------------------------------------------ */
-/* Workout output markdown                                             */
+/* Workout output — tables                                             */
 /* ------------------------------------------------------------------ */
-.workout-prose h1 { font-size: 1.3rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
-.workout-prose h2 { font-size: 1.1rem; font-weight: 700; margin: 1.25rem 0 0.4rem; color: #166534 !important; }
-.workout-prose h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.3rem; color: #166534 !important; }
-.workout-prose p  { margin: 0.5rem 0; line-height: 1.65; }
-.workout-prose ul { list-style: disc; padding-left: 1.4rem; margin: 0.4rem 0; }
-.workout-prose ol { list-style: decimal; padding-left: 1.4rem; margin: 0.4rem 0; }
-.workout-prose li { margin: 0.2rem 0; line-height: 1.6; }
-.workout-prose strong { font-weight: 600; }
-
-/* Tables */
-.workout-prose table, div[data-testid="stMarkdownContainer"] table {
+div[data-testid="stMarkdownContainer"] table {
     width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem;
 }
-.workout-prose thead tr, div[data-testid="stMarkdownContainer"] thead tr {
-    background: #f3f4f6;
-}
-.workout-prose th, div[data-testid="stMarkdownContainer"] th {
+div[data-testid="stMarkdownContainer"] thead tr { background: #f3f4f6; }
+div[data-testid="stMarkdownContainer"] th {
     text-align: left; font-weight: 600;
     padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb;
 }
-.workout-prose td, div[data-testid="stMarkdownContainer"] td {
+div[data-testid="stMarkdownContainer"] td {
     text-align: left; padding: 0.5rem 0.75rem;
     border: 1px solid #e5e7eb; vertical-align: top;
 }
-.workout-prose tbody tr:nth-child(even),
-div[data-testid="stMarkdownContainer"] tbody tr:nth-child(even) {
-    background: #f9fafb;
-}
+div[data-testid="stMarkdownContainer"] tbody tr:nth-child(even) { background: #f9fafb; }
 
 /* Subheader spacing */
 div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom: 0.25rem; }
@@ -394,7 +365,7 @@ def init_state():
         "equipment": [],
         "workout": "",
         "variation": 0,
-        "goal": "Muscle",  # must match a value in the segmented_control options
+        "goal": "Muscle",
         "experience": "Intermediate",
         "restrictions": "",
         "duration": "60 min",
@@ -532,7 +503,6 @@ def render_selection():
                 all_exercises.extend(EXERCISES.get(group, []))
             for ex in all_exercises:
                 st.session_state[f"focus_{ex}"] = True
-                st.session_state[f"focus2_{ex}"] = True
             st.session_state.selected = list(dict.fromkeys(all_exercises))
             st.rerun()
     with clr_col:
@@ -540,7 +510,6 @@ def render_selection():
             for group in focus_groups:
                 for ex in EXERCISES.get(group, []):
                     st.session_state[f"focus_{ex}"] = False
-                    st.session_state[f"focus2_{ex}"] = False
             st.session_state.selected = []
             st.rerun()
 
@@ -643,7 +612,6 @@ PRINT_CSS = """
 
 PRINT_BUTTON_HTML = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
 button.print-btn {
     padding: 0.4rem 1rem; background: #f9fafb; border: 1px solid #e5e7eb;
     border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem;
