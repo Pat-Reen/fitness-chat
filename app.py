@@ -464,18 +464,24 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    pill_select("Fitness goal", "goal",
-                ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"])
-    pill_select("Experience level", "experience",
-                ["Beginner", "Intermediate", "Advanced"])
-    pill_select("Session duration", "duration",
-                ["30 min", "45 min", "60 min", "90 min"])
+    col1, col2 = st.columns(2)
+    with col1:
+        pill_select("Fitness goal", "goal",
+                    ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"])
+    with col2:
+        pill_select("Experience level", "experience",
+                    ["Beginner", "Intermediate", "Advanced"])
 
-    restrictions = st.text_input(
-        "Injuries or limitations",
-        value=st.session_state.restrictions,
-        placeholder="Leave blank if none",
-    )
+    col3, col4 = st.columns(2)
+    with col3:
+        pill_select("Session duration", "duration",
+                    ["30 min", "45 min", "60 min", "90 min"])
+    with col4:
+        restrictions = st.text_input(
+            "Injuries or limitations",
+            value=st.session_state.restrictions,
+            placeholder="Leave blank if none",
+        )
 
     pill_select("Workout mode", "mode",
                 ["By muscle group", "By equipment"])
@@ -530,7 +536,7 @@ def render_selection():
         f"Duration: **{st.session_state.duration}**"
     )
 
-    sel_col, clr_col, _ = st.columns([1, 1, 4])
+    sel_col, clr_col = st.columns(2)
     with sel_col:
         if st.button("Select all", use_container_width=True):
             all_exercises: list[str] = []
@@ -606,7 +612,7 @@ def render_equipment():
         caption = f"Focus: **{', '.join(focus_groups)}** · " + caption
     st.caption(caption)
 
-    sel_col, clr_col, _ = st.columns([1, 1, 4])
+    sel_col, clr_col = st.columns(2)
     with sel_col:
         if st.button("Select all", use_container_width=True):
             for item in EQUIPMENT:
