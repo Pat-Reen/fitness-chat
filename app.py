@@ -464,25 +464,17 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        pill_select("Fitness goal", "goal",
-                    ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"])
-    with col2:
-        pill_select("Experience level", "experience",
-                    ["Beginner", "Intermediate", "Advanced"])
-
-    col3, col4 = st.columns(2)
-    with col3:
-        pill_select("Session duration", "duration",
-                    ["30 min", "45 min", "60 min", "90 min"])
-    with col4:
-        restrictions = st.text_input(
-            "Injuries or limitations",
-            value=st.session_state.restrictions,
-            placeholder="Leave blank if none",
-        )
-
+    pill_select("Fitness goal", "goal",
+                ["Build Muscle", "Weight Loss", "Endurance", "General Fitness"])
+    pill_select("Experience level", "experience",
+                ["Beginner", "Intermediate", "Advanced"])
+    pill_select("Session duration", "duration",
+                ["30 min", "45 min", "60 min", "90 min"])
+    restrictions = st.text_input(
+        "Injuries or limitations",
+        value=st.session_state.restrictions,
+        placeholder="Leave blank if none",
+    )
     pill_select("Workout mode", "mode",
                 ["By muscle group", "By equipment"])
 
