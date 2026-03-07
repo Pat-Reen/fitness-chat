@@ -215,10 +215,12 @@ div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom
 /* ------------------------------------------------------------------ */
 /* Segmented control — full width, no wrap                            */
 /* ------------------------------------------------------------------ */
-div[data-testid="stSegmentedControl"] { width: 100% !important; }
+div[data-testid="stSegmentedControl"],
 div[data-testid="stSegmentedControl"] > div,
-div[data-testid="stSegmentedControl"] > div > div {
+div[data-testid="stSegmentedControl"] > div > div,
+div[data-testid="stSegmentedControl"] > div > div > div {
     width: 100% !important;
+    max-width: 100% !important;
     display: flex !important;
     flex-wrap: nowrap !important;
 }
@@ -228,6 +230,19 @@ div[data-testid="stSegmentedControl"] button {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Prevent columns from stacking on mobile                            */
+/* ------------------------------------------------------------------ */
+[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+}
+[data-testid="column"] {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
 }
 </style>
 """
