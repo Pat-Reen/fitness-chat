@@ -211,40 +211,6 @@ div[data-testid="stMarkdownContainer"] tbody tr:nth-child(even) {
 
 /* Subheader spacing */
 div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom: 0.25rem; }
-
-/* ------------------------------------------------------------------ */
-/* Segmented control — full width, no wrap                            */
-/* ------------------------------------------------------------------ */
-div[data-testid="stSegmentedControl"] {
-    width: 100% !important;
-    max-width: 100% !important;
-}
-div[data-testid="stSegmentedControl"] div:has(> button) {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    width: 100% !important;
-    max-width: 100% !important;
-}
-div[data-testid="stSegmentedControl"] button {
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-}
-
-/* ------------------------------------------------------------------ */
-/* Keep button-pair columns side-by-side on mobile (not checkboxes)   */
-/* ------------------------------------------------------------------ */
-[data-testid="stHorizontalBlock"]:has(> [data-testid="column"] [data-testid="stButton"]) {
-    flex-wrap: nowrap !important;
-    gap: 0.5rem !important;
-}
-[data-testid="stHorizontalBlock"]:has(> [data-testid="column"] [data-testid="stButton"]) > [data-testid="column"] {
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    width: auto !important;
-}
 </style>
 """
 
@@ -585,14 +551,11 @@ def render_selection():
         st.subheader(group)
         exercises = [ex for ex in EXERCISES.get(group, []) if ex not in rendered]
         rendered.update(exercises)
-        mid = (len(exercises) + 1) // 2
-        col_a, col_b = st.columns(2)
-        for ex in exercises[:mid]:
-            checked = col_a.checkbox(ex, value=(ex in selected), key=f"focus_{ex}")
-            selected.add(ex) if checked else selected.discard(ex)
-        for ex in exercises[mid:]:
-            checked = col_b.checkbox(ex, value=(ex in selected), key=f"focus2_{ex}")
-            selected.add(ex) if checked else selected.discard(ex)
+        for ex in exercises:
+            if st.checkbox(ex, value=(ex in selected), key=f"focus_{ex}"):
+                selected.add(ex)
+            else:
+                selected.discard(ex)
 
     other_groups = [g for g in MUSCLE_GROUPS if g not in focus_groups]
     if other_groups:
@@ -601,14 +564,11 @@ def render_selection():
                 st.markdown(f"**{group}**")
                 exercises = [ex for ex in EXERCISES.get(group, []) if ex not in rendered]
                 rendered.update(exercises)
-                mid = (len(exercises) + 1) // 2
-                col_a, col_b = st.columns(2)
-                for ex in exercises[:mid]:
-                    checked = col_a.checkbox(ex, value=(ex in selected), key=f"other_{ex}")
-                    selected.add(ex) if checked else selected.discard(ex)
-                for ex in exercises[mid:]:
-                    checked = col_b.checkbox(ex, value=(ex in selected), key=f"other2_{ex}")
-                    selected.add(ex) if checked else selected.discard(ex)
+                for ex in exercises:
+                    if st.checkbox(ex, value=(ex in selected), key=f"other_{ex}"):
+                        selected.add(ex)
+                    else:
+                        selected.discard(ex)
 
     st.session_state.selected = list(selected)
 
@@ -649,15 +609,8 @@ def render_equipment():
             st.rerun()
 
     checked: set[str] = set(st.session_state.equipment)
-    mid = (len(EQUIPMENT) + 1) // 2
-    col_a, col_b = st.columns(2)
-    for item in EQUIPMENT[:mid]:
-        if col_a.checkbox(item, value=(item in checked), key=f"equip_{item}"):
-            checked.add(item)
-        else:
-            checked.discard(item)
-    for item in EQUIPMENT[mid:]:
-        if col_b.checkbox(item, value=(item in checked), key=f"equip_{item}"):
+    for item in EQUIPMENT:
+        if st.checkbox(item, value=(item in checked), key=f"equip_{item}"):
             checked.add(item)
         else:
             checked.discard(item)
