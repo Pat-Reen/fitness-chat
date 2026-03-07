@@ -56,8 +56,8 @@ div[data-testid="stRadio"] label[data-testid="stWidgetLabel"] {
     display: none;
 }
 div[data-testid="stRadio"] > div > label {
-    flex: 1;
-    min-width: 80px;
+    flex: 0 0 calc(50% - 0.2rem);
+    max-width: calc(50% - 0.2rem);
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
     padding: 0.45rem 0.75rem;
@@ -171,6 +171,12 @@ div[data-testid="stButton"] > button[kind="primary"] {
 div[data-testid="stButton"] > button[kind="primary"]:hover {
     background: #14532d !important;
     border-color: #14532d !important;
+}
+div[data-testid="stButton"] > button[kind="primary"]:disabled {
+    background: #166534 !important;
+    border-color: #166534 !important;
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
 }
 div[data-testid="stButton"] > button[kind="secondary"] {
     border-radius: 0.5rem !important;
