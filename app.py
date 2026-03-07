@@ -326,7 +326,8 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
         f"Prioritise these muscle groups: {', '.join(focus_groups)}. "
         f"Fill any remaining time with whatever the equipment allows best."
         if focus_groups
-        else "Choose muscle groups and exercises that best suit the available equipment."
+        else "No specific focus requested — design a balanced full-body session that hits all "
+             "major muscle groups (push, pull, legs, core) as evenly as the equipment allows."
     )
     prompt = (
         f"You are an expert personal trainer. Write a structured {duration} workout "
@@ -335,6 +336,10 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
         f"User profile:\n- Goal: {goal}\n- Experience: {experience}\n- {restriction_line}\n"
         f"{variation_line}\n\n"
         f"Focus: {focus_line}\n\n"
+        f"Sets and reps:\n"
+        f"- Default to 4 sets × 20 reps for most exercises unless the movement type demands otherwise\n"
+        f"  (e.g. heavy compound lifts or timed holds are fine to adjust)\n"
+        f"- Keep sets and reps consistent across all exercises within the same workout block\n\n"
         f"IMPORTANT: The entire session — warm-up, all sets, all rest periods, and cool-down — "
         f"must fit within {duration}. Do not over-program.\n\n"
         f"Format the plan in markdown with:\n"
