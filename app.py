@@ -215,14 +215,15 @@ div[data-testid="stHeadingWithActionElements"] { margin-top: 1rem; margin-bottom
 /* ------------------------------------------------------------------ */
 /* Segmented control — full width, no wrap                            */
 /* ------------------------------------------------------------------ */
-div[data-testid="stSegmentedControl"],
-div[data-testid="stSegmentedControl"] > div,
-div[data-testid="stSegmentedControl"] > div > div,
-div[data-testid="stSegmentedControl"] > div > div > div {
+div[data-testid="stSegmentedControl"] {
     width: 100% !important;
     max-width: 100% !important;
+}
+div[data-testid="stSegmentedControl"] div:has(> button) {
     display: flex !important;
     flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
 }
 div[data-testid="stSegmentedControl"] button {
     flex: 1 1 0 !important;
@@ -233,13 +234,13 @@ div[data-testid="stSegmentedControl"] button {
 }
 
 /* ------------------------------------------------------------------ */
-/* Prevent columns from stacking on mobile                            */
+/* Keep button-pair columns side-by-side on mobile (not checkboxes)   */
 /* ------------------------------------------------------------------ */
-[data-testid="stHorizontalBlock"] {
+[data-testid="stHorizontalBlock"]:has(> [data-testid="column"] [data-testid="stButton"]) {
     flex-wrap: nowrap !important;
     gap: 0.5rem !important;
 }
-[data-testid="column"] {
+[data-testid="stHorizontalBlock"]:has(> [data-testid="column"] [data-testid="stButton"]) > [data-testid="column"] {
     flex: 1 1 0 !important;
     min-width: 0 !important;
     width: auto !important;
