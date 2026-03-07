@@ -470,6 +470,12 @@ def render_preferences():
         btn_disabled = False
 
     if st.button(btn_label, type="primary", disabled=btn_disabled):
+        # Persist widget-managed values — Streamlit clears segmented_control keys
+        # when the widget is not rendered (i.e. after navigating away from this page)
+        st.session_state.goal         = st.session_state.goal or "Muscle"
+        st.session_state.experience   = st.session_state.experience or "Intermediate"
+        st.session_state.duration     = st.session_state.duration or "60 min"
+        st.session_state.mode         = mode
         st.session_state.restrictions = restrictions
         st.session_state.focus_groups = focus_groups
         st.session_state.workout      = ""
