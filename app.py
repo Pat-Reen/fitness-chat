@@ -388,8 +388,9 @@ def build_workout_stream(goal, experience, restrictions, duration, focus_groups,
     )
     exercise_list = "\n".join(f"- {e}" for e in exercises)
     fitbit_line = (
-        f"\nRecent workouts (from Fitbit, last 7 days):\n{fitbit_context}\n"
-        f"Factor this in — avoid overworking muscle groups trained in the last 48 hours.\n"
+        f"\nRecent workouts (from fitness tracker, last 7 days):\n{fitbit_context}\n"
+        f"Note: generic names like 'Strength', 'Structured Workout', or 'Weights' mean a general gym/strength session. "
+        f"Factor this in — avoid overworking muscle groups likely trained in the last 48 hours.\n"
         if fitbit_context else ""
     )
     prompt = (
@@ -442,8 +443,9 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
              "major muscle groups (push, pull, legs, core) as evenly as the equipment allows."
     )
     fitbit_line = (
-        f"\nRecent workouts (from Fitbit, last 7 days):\n{fitbit_context}\n"
-        f"Factor this in — avoid overworking muscle groups trained in the last 48 hours.\n"
+        f"\nRecent workouts (from fitness tracker, last 7 days):\n{fitbit_context}\n"
+        f"Note: generic names like 'Strength', 'Structured Workout', or 'Weights' mean a general gym/strength session. "
+        f"Factor this in — avoid overworking muscle groups likely trained in the last 48 hours.\n"
         if fitbit_context else ""
     )
     prompt = (
@@ -573,23 +575,17 @@ def render_preferences():
         if st.session_state.fitbit_error:
             st.error(f"Fitbit connection failed: {st.session_state.fitbit_error}")
         if st.session_state.fitbit_token:
-            with st.expander("Fitbit ✓", expanded=True):
+            with st.expander("Fitbit ✓", expanded=False):
                 summary = fitbit_activity_summary(st.session_state.fitbit_activities)
                 if summary:
                     st.markdown(summary)
                 else:
                     st.caption("No workouts recorded in the last 7 days.")
         else:
-            url = get_fitbit_auth_url()
-            st.markdown(
-                f'<a href="{url}" target="_self" style="display:block;text-align:center;'
-                f'padding:0.5rem 1rem;background:#166534;color:white;border-radius:0.5rem;'
-                f'text-decoration:none;font-weight:600;">Connect Fitbit →</a>',
-                unsafe_allow_html=True,
-            )
+            st.link_button("Connect Fitbit →", get_fitbit_auth_url(), use_container_width=True)
     elif profile == "nia":
         if st.session_state.garmin_connected:
-            with st.expander("Garmin ✓", expanded=True):
+            with st.expander("Garmin ✓", expanded=False):
                 summary = garmin_activity_summary(st.session_state.garmin_activities)
                 if summary:
                     st.markdown(summary)
