@@ -292,7 +292,7 @@ FITBIT_TOKEN_URL   = "https://api.fitbit.com/oauth2/token"
 FITBIT_REDIRECT_URI = "https://fitnesschat.streamlit.app/"
 
 
-def get_fitbit_auth_url() -> str:
+def get_fitbit_auth_url(state: str = "") -> str:
     params = {
         "response_type": "code",
         "client_id":     st.secrets["FITBIT_CLIENT_ID"],
@@ -300,6 +300,8 @@ def get_fitbit_auth_url() -> str:
         "scope":         "activity heartrate",
         "expires_in":    "604800",
     }
+    if state:
+        params["state"] = state
     return f"{FITBIT_AUTH_URL}?{urllib.parse.urlencode(params)}"
 
 
@@ -551,9 +553,9 @@ def render_step_indicator():
 # ---------------------------------------------------------------------------
 
 def render_preferences():
-    st.header("Your Preferences")
+    # Recent Activity section
+    st.header("Recent Activity")
 
-    # Fitness tracker — above preferences
     selection = st.selectbox(
         "Who are you?",
         options=[None] + _PROFILE_OPTIONS,
@@ -570,21 +572,32 @@ def render_preferences():
 
     if profile == "pat":
         connected = st.session_state.fitbit_token
-        label = "Recent Activity (Fitbit)" + (" ✓" if connected else "")
-        with st.expander(label, expanded=bool(connected)):
+        with st.expander("Fitbit" + (" ✓" if connected else ""), expanded=bool(connected)):
             if connected:
                 summary = fitbit_activity_summary(st.session_state.fitbit_activities)
-                st.markdown(summary) if summary else st.caption("No workouts recorded in the last 7 days.")
+                if summary:
+                    st.markdown(summary)
+                else:
+                    st.caption("No workouts recorded in the last 7 days.")
             else:
                 st.caption("Connect Fitbit to see your recent workouts here.")
-                st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
+                auth_url = get_fitbit_auth_url(state="Pat (Fitbit)")
+                st.markdown(
+                    f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
+                    f'<button style="padding:0.4rem 1rem;border-radius:0.5rem;'
+                    f'background:#166534;color:white;border:none;cursor:pointer;">📊 Connect Fitbit</button>'
+                    f'</a>',
+                    unsafe_allow_html=True,
+                )
     elif profile == "nia":
         connected = st.session_state.garmin_connected
-        label = "Recent Activity (Garmin)" + (" ✓" if connected else "")
-        with st.expander(label, expanded=bool(connected)):
+        with st.expander("Garmin" + (" ✓" if connected else ""), expanded=bool(connected)):
             if connected:
                 summary = garmin_activity_summary(st.session_state.garmin_activities)
-                st.markdown(summary) if summary else st.caption("No workouts recorded in the last 7 days.")
+                if summary:
+                    st.markdown(summary)
+                else:
+                    st.caption("No workouts recorded in the last 7 days.")
             else:
                 st.caption("Connect Garmin to see your recent workouts here.")
                 if st.button("Connect Garmin", icon="📊"):
@@ -597,7 +610,9 @@ def render_preferences():
                         except Exception as e:
                             st.error(f"Garmin connection failed: {e}")
 
+    # Preferences section
     st.divider()
+    st.header("Your Preferences")
     st.segmented_control(
         "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
         key="_wgt_goal",
@@ -896,6 +911,8 @@ if "code" in st.query_params and not st.session_state.fitbit_token:
     if "access_token" in token_data:
         st.session_state.fitbit_token      = token_data["access_token"]
         st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
+    if st.query_params.get("state"):
+        st.session_state.selected_profile = st.query_params["state"]
     st.query_params.clear()
     st.rerun()
 
