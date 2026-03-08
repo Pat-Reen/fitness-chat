@@ -342,7 +342,18 @@ def fitbit_activity_summary(activities: list) -> str:
         name     = a.get("activityName", "Unknown")
         duration = round(a.get("duration", 0) / 60000)
         day      = a.get("startTime", "")[:10]
-        lines.append(f"- {day}: {name} ({duration} min)")
+        parts    = [f"{duration} min"]
+        avg_hr   = a.get("averageHeartRate")
+        if avg_hr:
+            parts.append(f"avg HR {avg_hr} bpm")
+        calories = a.get("calories")
+        if calories:
+            parts.append(f"{calories} kcal")
+        zones = a.get("heartRateZones", [])
+        peak  = next((z for z in zones if z.get("name") == "Peak"), None)
+        if peak and peak.get("minutes", 0) > 0:
+            parts.append(f"{peak['minutes']} min in peak HR zone")
+        lines.append(f"- {day}: {name} ({', '.join(parts)})")
     return "\n".join(lines)
 
 
@@ -367,7 +378,24 @@ def garmin_activity_summary(activities: list) -> str:
         name     = a.get("activityName") or a.get("activityType", {}).get("typeKey", "Unknown")
         duration = round(a.get("duration", 0) / 60)
         day      = (a.get("startTimeLocal") or "")[:10]
-        lines.append(f"- {day}: {name} ({duration} min)")
+        parts    = [f"{duration} min"]
+        avg_hr   = a.get("averageHR")
+        max_hr   = a.get("maxHR")
+        if avg_hr:
+            hr_str = f"avg HR {avg_hr} bpm"
+            if max_hr:
+                hr_str += f" / max {max_hr} bpm"
+            parts.append(hr_str)
+        calories = a.get("calories")
+        if calories:
+            parts.append(f"{round(calories)} kcal")
+        aerobic  = a.get("aerobicTrainingEffect")
+        anaerobic = a.get("anaerobicTrainingEffect")
+        if aerobic is not None and aerobic > 0:
+            parts.append(f"aerobic TE {aerobic:.1f}")
+        if anaerobic is not None and anaerobic > 0:
+            parts.append(f"anaerobic TE {anaerobic:.1f}")
+        lines.append(f"- {day}: {name} ({', '.join(parts)})")
     return "\n".join(lines)
 
 
@@ -390,7 +418,9 @@ def build_workout_stream(goal, experience, restrictions, duration, focus_groups,
     fitbit_line = (
         f"\nRecent workouts (from fitness tracker, last 7 days):\n{fitbit_context}\n"
         f"Note: generic names like 'Strength', 'Structured Workout', or 'Weights' mean a general gym/strength session. "
-        f"Factor this in — avoid overworking muscle groups likely trained in the last 48 hours.\n"
+        f"HR data and training effect (TE) scores (1=easy, 5=max) indicate session intensity. "
+        f"Factor all of this in — avoid overworking muscle groups likely trained in the last 48 hours, "
+        f"and consider overall fatigue from recent high-intensity sessions.\n"
         if fitbit_context else ""
     )
     prompt = (
@@ -445,7 +475,9 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
     fitbit_line = (
         f"\nRecent workouts (from fitness tracker, last 7 days):\n{fitbit_context}\n"
         f"Note: generic names like 'Strength', 'Structured Workout', or 'Weights' mean a general gym/strength session. "
-        f"Factor this in — avoid overworking muscle groups likely trained in the last 48 hours.\n"
+        f"HR data and training effect (TE) scores (1=easy, 5=max) indicate session intensity. "
+        f"Factor all of this in — avoid overworking muscle groups likely trained in the last 48 hours, "
+        f"and consider overall fatigue from recent high-intensity sessions.\n"
         if fitbit_context else ""
     )
     prompt = (
