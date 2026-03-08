@@ -272,6 +272,23 @@ def sanitise_restrictions(text: str) -> str:
     return cleaned[:200]
 
 # ---------------------------------------------------------------------------
+# User detection
+# ---------------------------------------------------------------------------
+
+def get_user_profile() -> str:
+    """Returns 'pat', 'nia', or 'unknown' based on the logged-in Streamlit email."""
+    try:
+        email = (st.context.user.email or "").lower()
+        if "pat" in email:
+            return "pat"
+        if "nia" in email:
+            return "nia"
+    except Exception:
+        pass
+    return "unknown"
+
+
+# ---------------------------------------------------------------------------
 # Fitbit OAuth
 # ---------------------------------------------------------------------------
 
@@ -330,6 +347,31 @@ def fitbit_activity_summary(activities: list) -> str:
         name     = a.get("activityName", "Unknown")
         duration = round(a.get("duration", 0) / 60000)
         day      = a.get("startTime", "")[:10]
+        lines.append(f"- {day}: {name} ({duration} min)")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Garmin Connect
+# ---------------------------------------------------------------------------
+
+def fetch_garmin_activities() -> list:
+    from garminconnect import Garmin
+    client = Garmin(st.secrets["GARMIN_NIA_EMAIL"], st.secrets["GARMIN_NIA_PASSWORD"])
+    client.login()
+    start = (date.today() - timedelta(days=7)).isoformat()
+    end   = date.today().isoformat()
+    return client.get_activities_by_date(start, end)
+
+
+def garmin_activity_summary(activities: list) -> str:
+    if not activities:
+        return ""
+    lines = []
+    for a in activities[:7]:
+        name     = a.get("activityName") or a.get("activityType", {}).get("typeKey", "Unknown")
+        duration = round(a.get("duration", 0) / 60)
+        day      = (a.get("startTimeLocal") or "")[:10]
         lines.append(f"- {day}: {name} ({duration} min)")
     return "\n".join(lines)
 
@@ -459,6 +501,8 @@ def init_state():
         "duration": "60 min",
         "fitbit_token": None,
         "fitbit_activities": [],
+        "garmin_connected": False,
+        "garmin_activities": [],
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -513,16 +557,36 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    # Fitbit connection
-    if st.session_state.fitbit_token:
-        activities = st.session_state.fitbit_activities
-        summary    = fitbit_activity_summary(activities)
-        st.success(f"Fitbit connected — {len(activities)} workout(s) in the last 7 days")
-        if summary:
-            with st.expander("Recent activity"):
-                st.markdown(summary)
-    else:
-        st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
+    # Fitness tracker connection — routed by logged-in user
+    profile = get_user_profile()
+    if profile == "pat":
+        if st.session_state.fitbit_token:
+            activities = st.session_state.fitbit_activities
+            summary    = fitbit_activity_summary(activities)
+            st.success(f"Fitbit connected — {len(activities)} workout(s) in the last 7 days")
+            if summary:
+                with st.expander("Recent activity"):
+                    st.markdown(summary)
+        else:
+            st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
+    elif profile == "nia":
+        if st.session_state.garmin_connected:
+            activities = st.session_state.garmin_activities
+            summary    = garmin_activity_summary(activities)
+            st.success(f"Garmin connected — {len(activities)} workout(s) in the last 7 days")
+            if summary:
+                with st.expander("Recent activity"):
+                    st.markdown(summary)
+        else:
+            if st.button("Connect Garmin", icon="📊"):
+                with st.spinner("Connecting to Garmin…"):
+                    try:
+                        activities = fetch_garmin_activities()
+                        st.session_state.garmin_activities = activities
+                        st.session_state.garmin_connected  = True
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Garmin connection failed: {e}")
 
     st.divider()
     st.segmented_control(
@@ -767,7 +831,11 @@ def render_workout():
     st.caption(" · ".join(caption_parts))
 
     if not st.session_state.workout:
-        fitbit_context = fitbit_activity_summary(st.session_state.fitbit_activities)
+        profile = get_user_profile()
+        if profile == "nia":
+            fitbit_context = garmin_activity_summary(st.session_state.garmin_activities)
+        else:
+            fitbit_context = fitbit_activity_summary(st.session_state.fitbit_activities)
         if equipment_mode:
             full_text = st.write_stream(build_equipment_workout_stream(
                 st.session_state.goal, st.session_state.experience,
