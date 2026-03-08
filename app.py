@@ -584,25 +584,22 @@ def render_preferences():
                 height=24,
             )
     elif profile == "nia":
-        connected = st.session_state.garmin_connected
-        with st.expander("Garmin" + (" ✓" if connected else ""), expanded=bool(connected)):
-            if connected:
+        if st.session_state.garmin_connected:
+            with st.expander("Garmin ✓", expanded=True):
                 summary = garmin_activity_summary(st.session_state.garmin_activities)
                 if summary:
                     st.markdown(summary)
                 else:
                     st.caption("No workouts recorded in the last 7 days.")
-            else:
-                st.caption("Connect Garmin to see your recent workouts here.")
-                if st.button("Connect Garmin", icon="📊"):
-                    with st.spinner("Connecting to Garmin…"):
-                        try:
-                            activities = fetch_garmin_activities()
-                            st.session_state.garmin_activities = activities
-                            st.session_state.garmin_connected  = True
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Garmin connection failed: {e}")
+        else:
+            with st.spinner("Connecting to Garmin…"):
+                try:
+                    activities = fetch_garmin_activities()
+                    st.session_state.garmin_activities = activities
+                    st.session_state.garmin_connected  = True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Garmin connection failed: {e}")
 
     # Preferences section
     st.divider()
