@@ -277,14 +277,19 @@ def sanitise_restrictions(text: str) -> str:
 
 def get_user_profile() -> str:
     """Returns 'pat', 'nia', or 'unknown' based on the logged-in Streamlit email."""
-    try:
-        email = (st.context.user.email or "").lower()
-        if "pat" in email:
-            return "pat"
-        if "nia" in email:
-            return "nia"
-    except Exception:
-        pass
+    # Try st.context.user (Streamlit 1.38+)
+    for attr in ("context", "experimental_user"):
+        try:
+            user_obj = getattr(st, attr)
+            if attr == "context":
+                user_obj = user_obj.user
+            email = (getattr(user_obj, "email", None) or "").lower()
+            if "pat" in email:
+                return "pat"
+            if "nia" in email:
+                return "nia"
+        except Exception:
+            continue
     return "unknown"
 
 
@@ -503,6 +508,7 @@ def init_state():
         "fitbit_activities": [],
         "garmin_connected": False,
         "garmin_activities": [],
+        "selected_profile": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -633,6 +639,21 @@ def render_preferences():
     # Fitness tracker — shown below preferences in its own section
     st.divider()
     profile = get_user_profile()
+    if profile == "unknown":
+        # Email auth not available — let user identify themselves
+        profile = st.session_state.selected_profile
+        if not profile:
+            st.subheader("Recent Activity")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("I'm Pat (Fitbit)", use_container_width=True):
+                    st.session_state.selected_profile = "pat"
+                    st.rerun()
+            with col2:
+                if st.button("I'm Nia (Garmin)", use_container_width=True):
+                    st.session_state.selected_profile = "nia"
+                    st.rerun()
+
     if profile == "pat":
         st.subheader("Recent Activity (Fitbit)")
         if st.session_state.fitbit_token:
@@ -837,6 +858,8 @@ def render_workout():
 
     if not st.session_state.workout:
         profile = get_user_profile()
+        if profile == "unknown":
+            profile = st.session_state.selected_profile or "pat"
         if profile == "nia":
             fitbit_context = garmin_activity_summary(st.session_state.garmin_activities)
         else:
