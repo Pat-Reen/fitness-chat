@@ -563,6 +563,57 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
+    # Fitness tracker — above preferences
+    profile = get_user_profile()
+    if profile == "unknown":
+        profile = st.session_state.selected_profile
+        if not profile:
+            st.subheader("Recent Activity")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("I'm Pat (Fitbit)", use_container_width=True):
+                    st.session_state.selected_profile = "pat"
+                    st.rerun()
+            with col2:
+                if st.button("I'm Nia (Garmin)", use_container_width=True):
+                    st.session_state.selected_profile = "nia"
+                    st.rerun()
+
+    if profile == "pat":
+        connected = st.session_state.fitbit_token
+        label = "Recent Activity (Fitbit)" + (" ✓" if connected else "")
+        with st.expander(label, expanded=bool(connected)):
+            if connected:
+                summary = fitbit_activity_summary(st.session_state.fitbit_activities)
+                if summary:
+                    st.markdown(summary)
+                else:
+                    st.caption("No workouts recorded in the last 7 days.")
+            else:
+                st.caption("Connect Fitbit to see your recent workouts here.")
+                st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
+    elif profile == "nia":
+        connected = st.session_state.garmin_connected
+        label = "Recent Activity (Garmin)" + (" ✓" if connected else "")
+        with st.expander(label, expanded=bool(connected)):
+            if connected:
+                summary = garmin_activity_summary(st.session_state.garmin_activities)
+                if summary:
+                    st.markdown(summary)
+                else:
+                    st.caption("No workouts recorded in the last 7 days.")
+            else:
+                st.caption("Connect Garmin to see your recent workouts here.")
+                if st.button("Connect Garmin", icon="📊"):
+                    with st.spinner("Connecting to Garmin…"):
+                        try:
+                            activities = fetch_garmin_activities()
+                            st.session_state.garmin_activities = activities
+                            st.session_state.garmin_connected  = True
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Garmin connection failed: {e}")
+
     st.divider()
     st.segmented_control(
         "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
@@ -635,57 +686,6 @@ def render_preferences():
             st.session_state.stage     = "equipment"
 
         st.rerun()
-
-    # Fitness tracker — shown below preferences in its own section
-    st.divider()
-    profile = get_user_profile()
-    if profile == "unknown":
-        # Email auth not available — let user identify themselves
-        profile = st.session_state.selected_profile
-        if not profile:
-            st.subheader("Recent Activity")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("I'm Pat (Fitbit)", use_container_width=True):
-                    st.session_state.selected_profile = "pat"
-                    st.rerun()
-            with col2:
-                if st.button("I'm Nia (Garmin)", use_container_width=True):
-                    st.session_state.selected_profile = "nia"
-                    st.rerun()
-
-    if profile == "pat":
-        st.subheader("Recent Activity (Fitbit)")
-        if st.session_state.fitbit_token:
-            activities = st.session_state.fitbit_activities
-            summary    = fitbit_activity_summary(activities)
-            if summary:
-                st.markdown(summary)
-            else:
-                st.caption("No workouts recorded in the last 7 days.")
-        else:
-            st.caption("Connect Fitbit to see your recent workouts here.")
-            st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
-    elif profile == "nia":
-        st.subheader("Recent Activity (Garmin)")
-        if st.session_state.garmin_connected:
-            activities = st.session_state.garmin_activities
-            summary    = garmin_activity_summary(activities)
-            if summary:
-                st.markdown(summary)
-            else:
-                st.caption("No workouts recorded in the last 7 days.")
-        else:
-            st.caption("Connect Garmin to see your recent workouts here.")
-            if st.button("Connect Garmin", icon="📊"):
-                with st.spinner("Connecting to Garmin…"):
-                    try:
-                        activities = fetch_garmin_activities()
-                        st.session_state.garmin_activities = activities
-                        st.session_state.garmin_connected  = True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Garmin connection failed: {e}")
 
 
 def render_selection():
