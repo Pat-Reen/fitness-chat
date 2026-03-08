@@ -846,6 +846,17 @@ def render_workout():
     st.caption(" · ".join(caption_parts))
 
     if not st.session_state.workout:
+        components.html(
+            """<script>
+            const el = window.parent.document.querySelector('section[data-testid="stMain"]')
+                     || window.parent.document.querySelector('.main');
+            if (el) {
+                const id = setInterval(() => { el.scrollTop = el.scrollHeight; }, 100);
+                setTimeout(() => clearInterval(id), 300000);
+            }
+            </script>""",
+            height=0,
+        )
         profile = get_user_profile()
         if profile == "nia":
             fitbit_context = garmin_activity_summary(st.session_state.garmin_activities)
