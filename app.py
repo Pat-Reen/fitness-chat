@@ -557,37 +557,6 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
-    # Fitness tracker connection — routed by logged-in user
-    profile = get_user_profile()
-    if profile == "pat":
-        if st.session_state.fitbit_token:
-            activities = st.session_state.fitbit_activities
-            summary    = fitbit_activity_summary(activities)
-            st.success(f"Fitbit connected — {len(activities)} workout(s) in the last 7 days")
-            if summary:
-                with st.expander("Recent activity"):
-                    st.markdown(summary)
-        else:
-            st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
-    elif profile == "nia":
-        if st.session_state.garmin_connected:
-            activities = st.session_state.garmin_activities
-            summary    = garmin_activity_summary(activities)
-            st.success(f"Garmin connected — {len(activities)} workout(s) in the last 7 days")
-            if summary:
-                with st.expander("Recent activity"):
-                    st.markdown(summary)
-        else:
-            if st.button("Connect Garmin", icon="📊"):
-                with st.spinner("Connecting to Garmin…"):
-                    try:
-                        activities = fetch_garmin_activities()
-                        st.session_state.garmin_activities = activities
-                        st.session_state.garmin_connected  = True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Garmin connection failed: {e}")
-
     st.divider()
     st.segmented_control(
         "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
@@ -660,6 +629,42 @@ def render_preferences():
             st.session_state.stage     = "equipment"
 
         st.rerun()
+
+    # Fitness tracker — shown below preferences in its own section
+    st.divider()
+    profile = get_user_profile()
+    if profile == "pat":
+        st.subheader("Recent Activity (Fitbit)")
+        if st.session_state.fitbit_token:
+            activities = st.session_state.fitbit_activities
+            summary    = fitbit_activity_summary(activities)
+            if summary:
+                st.markdown(summary)
+            else:
+                st.caption("No workouts recorded in the last 7 days.")
+        else:
+            st.caption("Connect Fitbit to see your recent workouts here.")
+            st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
+    elif profile == "nia":
+        st.subheader("Recent Activity (Garmin)")
+        if st.session_state.garmin_connected:
+            activities = st.session_state.garmin_activities
+            summary    = garmin_activity_summary(activities)
+            if summary:
+                st.markdown(summary)
+            else:
+                st.caption("No workouts recorded in the last 7 days.")
+        else:
+            st.caption("Connect Garmin to see your recent workouts here.")
+            if st.button("Connect Garmin", icon="📊"):
+                with st.spinner("Connecting to Garmin…"):
+                    try:
+                        activities = fetch_garmin_activities()
+                        st.session_state.garmin_activities = activities
+                        st.session_state.garmin_connected  = True
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Garmin connection failed: {e}")
 
 
 def render_selection():
