@@ -581,7 +581,7 @@ def render_preferences():
                     st.caption("No workouts recorded in the last 7 days.")
             else:
                 st.caption("Connect Fitbit to see your recent workouts here.")
-                auth_url = get_fitbit_auth_url(state="Pat (Fitbit)")
+                auth_url = get_fitbit_auth_url(state="pat")
                 st.markdown(
                     f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
                     f'<button style="padding:0.4rem 1rem;border-radius:0.5rem;'
@@ -911,8 +911,9 @@ if "code" in st.query_params and not st.session_state.fitbit_token:
     if "access_token" in token_data:
         st.session_state.fitbit_token      = token_data["access_token"]
         st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
-    if st.query_params.get("state"):
-        st.session_state.selected_profile = st.query_params["state"]
+    state_to_profile = {"pat": "Pat (Fitbit)", "nia": "Nia (Garmin)"}
+    if st.query_params.get("state") in state_to_profile:
+        st.session_state.selected_profile = state_to_profile[st.query_params["state"]]
     st.query_params.clear()
     st.rerun()
 
