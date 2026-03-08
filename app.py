@@ -496,6 +496,7 @@ def init_state():
         "duration": "60 min",
         "fitbit_token": None,
         "fitbit_activities": [],
+        "fitbit_error": None,
         "garmin_connected": False,
         "garmin_activities": [],
         "selected_profile": None,
@@ -569,6 +570,8 @@ def render_preferences():
     profile = get_user_profile()
 
     if profile == "pat":
+        if st.session_state.fitbit_error:
+            st.error(f"Fitbit connection failed: {st.session_state.fitbit_error}")
         if st.session_state.fitbit_token:
             with st.expander("Fitbit ✓", expanded=True):
                 summary = fitbit_activity_summary(st.session_state.fitbit_activities)
@@ -904,9 +907,15 @@ if "code" in st.query_params and not st.session_state.fitbit_token:
         if "access_token" in token_data:
             st.session_state.fitbit_token      = token_data["access_token"]
             st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
+        else:
+            st.session_state.fitbit_error = token_data.get("errors", token_data)
     except Exception as e:
-        st.error(f"Fitbit connection failed: {e}")
-    st.query_params.clear()
+        st.session_state.fitbit_error = str(e)
+    finally:
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
     st.rerun()
 
 render_step_indicator()
