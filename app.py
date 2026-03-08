@@ -292,7 +292,7 @@ FITBIT_TOKEN_URL   = "https://api.fitbit.com/oauth2/token"
 FITBIT_REDIRECT_URI = "https://fitnesschat.streamlit.app/"
 
 
-def get_fitbit_auth_url(state: str = "") -> str:
+def get_fitbit_auth_url() -> str:
     params = {
         "response_type": "code",
         "client_id":     st.secrets["FITBIT_CLIENT_ID"],
@@ -300,8 +300,6 @@ def get_fitbit_auth_url(state: str = "") -> str:
         "scope":         "activity heartrate",
         "expires_in":    "604800",
     }
-    if state:
-        params["state"] = state
     return f"{FITBIT_AUTH_URL}?{urllib.parse.urlencode(params)}"
 
 
@@ -571,24 +569,19 @@ def render_preferences():
     profile = get_user_profile()
 
     if profile == "pat":
-        connected = st.session_state.fitbit_token
-        with st.expander("Fitbit" + (" ✓" if connected else ""), expanded=bool(connected)):
-            if connected:
+        if st.session_state.fitbit_token:
+            with st.expander("Fitbit ✓", expanded=True):
                 summary = fitbit_activity_summary(st.session_state.fitbit_activities)
                 if summary:
                     st.markdown(summary)
                 else:
                     st.caption("No workouts recorded in the last 7 days.")
-            else:
-                st.caption("Connect Fitbit to see your recent workouts here.")
-                auth_url = get_fitbit_auth_url(state="pat")
-                st.markdown(
-                    f'<a href="{auth_url}" target="_self" style="text-decoration:none;">'
-                    f'<button style="padding:0.4rem 1rem;border-radius:0.5rem;'
-                    f'background:#166534;color:white;border:none;cursor:pointer;">📊 Connect Fitbit</button>'
-                    f'</a>',
-                    unsafe_allow_html=True,
-                )
+        else:
+            st.caption("Redirecting to Fitbit…")
+            components.html(
+                f"<script>window.parent.location.href = '{get_fitbit_auth_url()}';</script>",
+                height=0,
+            )
     elif profile == "nia":
         connected = st.session_state.garmin_connected
         with st.expander("Garmin" + (" ✓" if connected else ""), expanded=bool(connected)):
@@ -911,9 +904,6 @@ if "code" in st.query_params and not st.session_state.fitbit_token:
     if "access_token" in token_data:
         st.session_state.fitbit_token      = token_data["access_token"]
         st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
-    state_to_profile = {"pat": "Pat (Fitbit)", "nia": "Nia (Garmin)"}
-    if st.query_params.get("state") in state_to_profile:
-        st.session_state.selected_profile = state_to_profile[st.query_params["state"]]
     st.query_params.clear()
     st.rerun()
 
