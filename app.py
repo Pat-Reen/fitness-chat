@@ -577,10 +577,11 @@ def render_preferences():
                 else:
                     st.caption("No workouts recorded in the last 7 days.")
         else:
-            st.caption("Redirecting to Fitbit…")
+            auth_url = get_fitbit_auth_url()
             components.html(
-                f"<script>window.parent.location.href = '{get_fitbit_auth_url()}';</script>",
-                height=0,
+                f'<a id="r" href="{auth_url}" target="_parent">Connecting to Fitbit — click here if not redirected</a>'
+                f'<script>document.getElementById("r").click();</script>',
+                height=24,
             )
     elif profile == "nia":
         connected = st.session_state.garmin_connected
@@ -900,10 +901,13 @@ init_state()
 
 # Handle Fitbit OAuth callback — Fitbit redirects back with ?code=...
 if "code" in st.query_params and not st.session_state.fitbit_token:
-    token_data = exchange_fitbit_code(st.query_params["code"])
-    if "access_token" in token_data:
-        st.session_state.fitbit_token      = token_data["access_token"]
-        st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
+    try:
+        token_data = exchange_fitbit_code(st.query_params["code"])
+        if "access_token" in token_data:
+            st.session_state.fitbit_token      = token_data["access_token"]
+            st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
+    except Exception as e:
+        st.error(f"Fitbit connection failed: {e}")
     st.query_params.clear()
     st.rerun()
 
