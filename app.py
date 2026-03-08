@@ -1,6 +1,10 @@
 import anthropic
+import base64
 import os
+import urllib.parse
+from datetime import date, timedelta
 from dotenv import load_dotenv
+import requests
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -268,10 +272,73 @@ def sanitise_restrictions(text: str) -> str:
     return cleaned[:200]
 
 # ---------------------------------------------------------------------------
+# Fitbit OAuth
+# ---------------------------------------------------------------------------
+
+FITBIT_AUTH_URL    = "https://www.fitbit.com/oauth2/authorize"
+FITBIT_TOKEN_URL   = "https://api.fitbit.com/oauth2/token"
+FITBIT_REDIRECT_URI = "https://fitnesschat.streamlit.app/"
+
+
+def get_fitbit_auth_url() -> str:
+    params = {
+        "response_type": "code",
+        "client_id":     st.secrets["FITBIT_CLIENT_ID"],
+        "redirect_uri":  FITBIT_REDIRECT_URI,
+        "scope":         "activity heartrate",
+        "expires_in":    "604800",
+    }
+    return f"{FITBIT_AUTH_URL}?{urllib.parse.urlencode(params)}"
+
+
+def exchange_fitbit_code(code: str) -> dict:
+    credentials = base64.b64encode(
+        f"{st.secrets['FITBIT_CLIENT_ID']}:{st.secrets['FITBIT_CLIENT_SECRET']}".encode()
+    ).decode()
+    resp = requests.post(
+        FITBIT_TOKEN_URL,
+        headers={
+            "Authorization": f"Basic {credentials}",
+            "Content-Type":  "application/x-www-form-urlencoded",
+        },
+        data={
+            "code":         code,
+            "grant_type":   "authorization_code",
+            "redirect_uri": FITBIT_REDIRECT_URI,
+        },
+        timeout=10,
+    )
+    return resp.json()
+
+
+def fetch_fitbit_activities(token: str) -> list:
+    after = (date.today() - timedelta(days=7)).isoformat()
+    resp = requests.get(
+        "https://api.fitbit.com/1/user/-/activities/list.json"
+        f"?afterDate={after}&sort=desc&limit=10&offset=0",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+    )
+    return resp.json().get("activities", [])
+
+
+def fitbit_activity_summary(activities: list) -> str:
+    if not activities:
+        return ""
+    lines = []
+    for a in activities[:7]:
+        name     = a.get("activityName", "Unknown")
+        duration = round(a.get("duration", 0) / 60000)
+        day      = a.get("startTime", "")[:10]
+        lines.append(f"- {day}: {name} ({duration} min)")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Claude helpers
 # ---------------------------------------------------------------------------
 
-def build_workout_stream(goal, experience, restrictions, duration, focus_groups, exercises, variation):
+def build_workout_stream(goal, experience, restrictions, duration, focus_groups, exercises, variation, fitbit_context=""):
     restrictions = sanitise_restrictions(restrictions)
     restriction_line = (
         f"The user has these restrictions/injuries: {restrictions}. Provide modifications where relevant."
@@ -283,10 +350,16 @@ def build_workout_stream(goal, experience, restrictions, duration, focus_groups,
         if variation > 0 else ""
     )
     exercise_list = "\n".join(f"- {e}" for e in exercises)
+    fitbit_line = (
+        f"\nRecent workouts (from Fitbit, last 7 days):\n{fitbit_context}\n"
+        f"Factor this in — avoid overworking muscle groups trained in the last 48 hours.\n"
+        if fitbit_context else ""
+    )
     prompt = (
         f"You are an expert personal trainer. Write a structured {duration} gym workout "
         f"using ONLY the exercises listed below. The session focuses on: {', '.join(focus_groups)}.\n\n"
         f"User profile:\n- Goal: {goal}\n- Experience: {experience}\n- {restriction_line}\n"
+        f"{fitbit_line}"
         f"{variation_line}\n\n"
         f"Exercises to include:\n{exercise_list}\n\n"
         f"IMPORTANT: The entire session — warm-up, all sets, all rest periods, and cool-down — "
@@ -313,7 +386,7 @@ def build_workout_stream(goal, experience, restrictions, duration, focus_groups,
             yield text
 
 
-def build_equipment_workout_stream(goal, experience, restrictions, duration, equipment, focus_groups, variation):
+def build_equipment_workout_stream(goal, experience, restrictions, duration, equipment, focus_groups, variation, fitbit_context=""):
     restrictions = sanitise_restrictions(restrictions)
     restriction_line = (
         f"The user has these restrictions/injuries: {restrictions}. Provide modifications where relevant."
@@ -331,11 +404,17 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
         else "No specific focus requested — design a balanced full-body session that hits all "
              "major muscle groups (push, pull, legs, core) as evenly as the equipment allows."
     )
+    fitbit_line = (
+        f"\nRecent workouts (from Fitbit, last 7 days):\n{fitbit_context}\n"
+        f"Factor this in — avoid overworking muscle groups trained in the last 48 hours.\n"
+        if fitbit_context else ""
+    )
     prompt = (
         f"You are an expert personal trainer. Write a structured {duration} workout "
         f"using ONLY the equipment listed below. Do not reference any equipment not in the list.\n\n"
         f"Available equipment:\n" + "\n".join(f"- {e}" for e in equipment) + "\n\n"
         f"User profile:\n- Goal: {goal}\n- Experience: {experience}\n- {restriction_line}\n"
+        f"{fitbit_line}"
         f"{variation_line}\n\n"
         f"Focus: {focus_line}\n\n"
         f"Sets and reps:\n"
@@ -378,6 +457,8 @@ def init_state():
         "experience": "Intermediate",
         "restrictions": "",
         "duration": "60 min",
+        "fitbit_token": None,
+        "fitbit_activities": [],
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -432,6 +513,18 @@ def render_step_indicator():
 def render_preferences():
     st.header("Your Preferences")
 
+    # Fitbit connection
+    if st.session_state.fitbit_token:
+        activities = st.session_state.fitbit_activities
+        summary    = fitbit_activity_summary(activities)
+        st.success(f"Fitbit connected — {len(activities)} workout(s) in the last 7 days")
+        if summary:
+            with st.expander("Recent activity"):
+                st.markdown(summary)
+    else:
+        st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
+
+    st.divider()
     st.segmented_control(
         "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
         key="_wgt_goal",
@@ -674,19 +767,20 @@ def render_workout():
     st.caption(" · ".join(caption_parts))
 
     if not st.session_state.workout:
+        fitbit_context = fitbit_activity_summary(st.session_state.fitbit_activities)
         if equipment_mode:
             full_text = st.write_stream(build_equipment_workout_stream(
                 st.session_state.goal, st.session_state.experience,
                 st.session_state.restrictions, st.session_state.duration,
                 st.session_state.equipment, st.session_state.focus_groups,
-                st.session_state.variation,
+                st.session_state.variation, fitbit_context,
             ))
         else:
             full_text = st.write_stream(build_workout_stream(
                 st.session_state.goal, st.session_state.experience,
                 st.session_state.restrictions, st.session_state.duration,
                 st.session_state.focus_groups, st.session_state.selected,
-                st.session_state.variation,
+                st.session_state.variation, fitbit_context,
             ))
         st.session_state.workout = full_text
     else:
@@ -718,6 +812,16 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 st.title("Fitness Chat")
 
 init_state()
+
+# Handle Fitbit OAuth callback — Fitbit redirects back with ?code=...
+if "code" in st.query_params and not st.session_state.fitbit_token:
+    token_data = exchange_fitbit_code(st.query_params["code"])
+    if "access_token" in token_data:
+        st.session_state.fitbit_token      = token_data["access_token"]
+        st.session_state.fitbit_activities = fetch_fitbit_activities(token_data["access_token"])
+    st.query_params.clear()
+    st.rerun()
+
 render_step_indicator()
 
 stage = st.session_state.stage
