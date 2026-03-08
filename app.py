@@ -577,12 +577,7 @@ def render_preferences():
                 else:
                     st.caption("No workouts recorded in the last 7 days.")
         else:
-            auth_url = get_fitbit_auth_url()
-            components.html(
-                f'<a id="r" href="{auth_url}" target="_parent">Connecting to Fitbit — click here if not redirected</a>'
-                f'<script>document.getElementById("r").click();</script>',
-                height=24,
-            )
+            st.link_button("Connect Fitbit →", get_fitbit_auth_url(), use_container_width=True)
     elif profile == "nia":
         if st.session_state.garmin_connected:
             with st.expander("Garmin ✓", expanded=True):
