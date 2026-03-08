@@ -851,8 +851,12 @@ def render_workout():
             const el = window.parent.document.querySelector('section[data-testid="stMain"]')
                      || window.parent.document.querySelector('.main');
             if (el) {
-                const id = setInterval(() => { el.scrollTop = el.scrollHeight; }, 100);
-                setTimeout(() => clearInterval(id), 300000);
+                const observer = new MutationObserver(() => {
+                    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 300;
+                    if (nearBottom) el.scrollTop = el.scrollHeight;
+                });
+                observer.observe(el, { childList: true, subtree: true });
+                setTimeout(() => observer.disconnect(), 300000);
             }
             </script>""",
             height=0,
