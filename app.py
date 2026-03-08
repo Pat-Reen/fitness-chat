@@ -577,7 +577,13 @@ def render_preferences():
                 else:
                     st.caption("No workouts recorded in the last 7 days.")
         else:
-            st.link_button("Connect Fitbit →", get_fitbit_auth_url(), use_container_width=True)
+            url = get_fitbit_auth_url()
+            st.markdown(
+                f'<a href="{url}" target="_self" style="display:block;text-align:center;'
+                f'padding:0.5rem 1rem;background:#166534;color:white;border-radius:0.5rem;'
+                f'text-decoration:none;font-weight:600;">Connect Fitbit →</a>',
+                unsafe_allow_html=True,
+            )
     elif profile == "nia":
         if st.session_state.garmin_connected:
             with st.expander("Garmin ✓", expanded=True):
