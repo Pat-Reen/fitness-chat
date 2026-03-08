@@ -275,22 +275,12 @@ def sanitise_restrictions(text: str) -> str:
 # User detection
 # ---------------------------------------------------------------------------
 
+_PROFILE_OPTIONS = ["Pat (Fitbit)", "Nia (Garmin)", "Other (No History)"]
+_PROFILE_MAP     = {"Pat (Fitbit)": "pat", "Nia (Garmin)": "nia", "Other (No History)": "other"}
+
+
 def get_user_profile() -> str:
-    """Returns 'pat', 'nia', or 'unknown' based on the logged-in Streamlit email."""
-    # Try st.context.user (Streamlit 1.38+)
-    for attr in ("context", "experimental_user"):
-        try:
-            user_obj = getattr(st, attr)
-            if attr == "context":
-                user_obj = user_obj.user
-            email = (getattr(user_obj, "email", None) or "").lower()
-            if "pat" in email:
-                return "pat"
-            if "nia" in email:
-                return "nia"
-        except Exception:
-            continue
-    return "unknown"
+    return _PROFILE_MAP.get(st.session_state.get("selected_profile") or "", "other")
 
 
 # ---------------------------------------------------------------------------
@@ -564,20 +554,19 @@ def render_preferences():
     st.header("Your Preferences")
 
     # Fitness tracker — above preferences
+    selection = st.selectbox(
+        "Who are you?",
+        options=[None] + _PROFILE_OPTIONS,
+        index=([None] + _PROFILE_OPTIONS).index(st.session_state.selected_profile)
+              if st.session_state.selected_profile in _PROFILE_OPTIONS else 0,
+        format_func=lambda x: "Select…" if x is None else x,
+        label_visibility="collapsed",
+    )
+    if selection != st.session_state.selected_profile:
+        st.session_state.selected_profile = selection
+        st.rerun()
+
     profile = get_user_profile()
-    if profile == "unknown":
-        profile = st.session_state.selected_profile
-        if not profile:
-            st.subheader("Recent Activity")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("I'm Pat (Fitbit)", use_container_width=True):
-                    st.session_state.selected_profile = "pat"
-                    st.rerun()
-            with col2:
-                if st.button("I'm Nia (Garmin)", use_container_width=True):
-                    st.session_state.selected_profile = "nia"
-                    st.rerun()
 
     if profile == "pat":
         connected = st.session_state.fitbit_token
@@ -585,10 +574,7 @@ def render_preferences():
         with st.expander(label, expanded=bool(connected)):
             if connected:
                 summary = fitbit_activity_summary(st.session_state.fitbit_activities)
-                if summary:
-                    st.markdown(summary)
-                else:
-                    st.caption("No workouts recorded in the last 7 days.")
+                st.markdown(summary) if summary else st.caption("No workouts recorded in the last 7 days.")
             else:
                 st.caption("Connect Fitbit to see your recent workouts here.")
                 st.link_button("Connect Fitbit", get_fitbit_auth_url(), icon="📊")
@@ -598,10 +584,7 @@ def render_preferences():
         with st.expander(label, expanded=bool(connected)):
             if connected:
                 summary = garmin_activity_summary(st.session_state.garmin_activities)
-                if summary:
-                    st.markdown(summary)
-                else:
-                    st.caption("No workouts recorded in the last 7 days.")
+                st.markdown(summary) if summary else st.caption("No workouts recorded in the last 7 days.")
             else:
                 st.caption("Connect Garmin to see your recent workouts here.")
                 if st.button("Connect Garmin", icon="📊"):
@@ -858,8 +841,6 @@ def render_workout():
 
     if not st.session_state.workout:
         profile = get_user_profile()
-        if profile == "unknown":
-            profile = st.session_state.selected_profile or "pat"
         if profile == "nia":
             fitbit_context = garmin_activity_summary(st.session_state.garmin_activities)
         else:
