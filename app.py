@@ -334,7 +334,7 @@ def fetch_fitbit_activities(token: str) -> list:
     return resp.json().get("activities", [])
 
 
-_FITBIT_RUN_NAMES = {"structured workout", "run", "outdoor run", "treadmill", "treadmill run"}
+_FITBIT_RUN_KEYWORDS = ("structured workout", "run", "outdoor run", "treadmill")
 
 def fitbit_activity_summary(activities: list) -> str:
     if not activities:
@@ -344,7 +344,7 @@ def fitbit_activity_summary(activities: list) -> str:
         name     = a.get("activityName", "Unknown")
         duration = round(a.get("duration", 0) / 60000)
         day      = a.get("startTime", "")[:10]
-        is_run   = name.lower() in _FITBIT_RUN_NAMES
+        is_run   = any(kw in name.lower() for kw in _FITBIT_RUN_KEYWORDS)
         display  = "Run" if is_run else name
         parts    = [f"{duration} min"]
         if is_run:
