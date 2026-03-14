@@ -334,6 +334,8 @@ def fetch_fitbit_activities(token: str) -> list:
     return resp.json().get("activities", [])
 
 
+_FITBIT_RUN_NAMES = {"structured workout", "run", "outdoor run", "treadmill", "treadmill run"}
+
 def fitbit_activity_summary(activities: list) -> str:
     if not activities:
         return ""
@@ -342,8 +344,17 @@ def fitbit_activity_summary(activities: list) -> str:
         name     = a.get("activityName", "Unknown")
         duration = round(a.get("duration", 0) / 60000)
         day      = a.get("startTime", "")[:10]
+        is_run   = name.lower() in _FITBIT_RUN_NAMES
+        display  = "Run" if is_run else name
         parts    = [f"{duration} min"]
-        avg_hr   = a.get("averageHeartRate")
+        if is_run:
+            dist = a.get("distance")  # km
+            if dist:
+                parts.append(f"{dist:.2f} km")
+                if duration > 0:
+                    pace_secs = (duration * 60) / dist
+                    parts.append(f"{int(pace_secs // 60)}:{int(pace_secs % 60):02d} /km")
+        avg_hr = a.get("averageHeartRate")
         if avg_hr:
             parts.append(f"avg HR {avg_hr} bpm")
         calories = a.get("calories")
@@ -353,7 +364,7 @@ def fitbit_activity_summary(activities: list) -> str:
         peak  = next((z for z in zones if z.get("name") == "Peak"), None)
         if peak and peak.get("minutes", 0) > 0:
             parts.append(f"{peak['minutes']} min in peak HR zone")
-        lines.append(f"- {day}: {name} ({', '.join(parts)})")
+        lines.append(f"- {day}: {display} ({', '.join(parts)})")
     return "\n".join(lines)
 
 
@@ -375,10 +386,21 @@ def garmin_activity_summary(activities: list) -> str:
         return ""
     lines = []
     for a in activities[:7]:
-        name     = a.get("activityName") or a.get("activityType", {}).get("typeKey", "Unknown")
+        type_key = a.get("activityType", {}).get("typeKey", "")
+        name     = a.get("activityName") or type_key or "Unknown"
+        is_run   = "running" in type_key.lower()
         duration = round(a.get("duration", 0) / 60)
         day      = (a.get("startTimeLocal") or "")[:10]
         parts    = [f"{duration} min"]
+        if is_run:
+            dist_m = a.get("distance")  # metres
+            if dist_m:
+                dist_km = dist_m / 1000
+                parts.append(f"{dist_km:.2f} km")
+                avg_speed = a.get("averageSpeed")  # m/s
+                if avg_speed and avg_speed > 0:
+                    pace_secs = 1000 / avg_speed
+                    parts.append(f"{int(pace_secs // 60)}:{int(pace_secs % 60):02d} /km")
         avg_hr   = a.get("averageHR")
         max_hr   = a.get("maxHR")
         if avg_hr:
