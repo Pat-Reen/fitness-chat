@@ -819,6 +819,11 @@ def render_preferences():
 
     st.header("Your Preferences")
 
+    if st.button("← Back", key="prefs_back"):
+        st.session_state.stage         = "activity"
+        st.session_state.activity_type = None
+        st.rerun()
+
     restrictions = st.text_input(
         "Injuries or limitations",
         value=st.session_state.restrictions,
