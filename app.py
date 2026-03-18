@@ -620,42 +620,44 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
         for text in stream.text_stream:
             yield text
 
-def build_run_suggestion_stream(goal, experience, restrictions, duration, run_context, variation):
+def build_run_suggestion_stream(goal, experience, restrictions, distance, run_type, run_context, variation):
     restrictions = sanitise_restrictions(restrictions)
     restriction_line = (
         f"The user has these restrictions/injuries: {restrictions}. Provide modifications where relevant."
         if restrictions else "The user has no injuries or limitations."
     )
     variation_line = (
-        f"\nThis is variation #{variation} — suggest a meaningfully different run type or structure."
+        f"\nThis is variation #{variation} — suggest a meaningfully different run structure or session."
         if variation > 0 else ""
+    )
+    run_type_line = (
+        f"The user wants a {run_type.lower()} run — structure the session around this.\n"
+        if run_type and run_type != "Any" else ""
     )
     run_context_line = (
         f"\nRecent run history (last 7 days):\n{run_context}\n"
-        f"Use this data — distance, pace, elevation gain, HR, training effect — to gauge current fitness "
-        f"and training load. Recommend a run type for today that balances training stimulus with recovery.\n"
+        f"Use this data — distance, pace, HR, training effect — to gauge current fitness "
+        f"and training load. Plan a session that balances training stimulus with recovery.\n"
         if run_context else
         "No recent run data available — suggest a run appropriate for the user's goal and experience level.\n"
     )
     prompt = (
-        f"You are an expert running coach. Based on the user's recent run history, "
-        f"suggest a specific run for today that fits within {duration}.\n\n"
+        f"You are an expert running coach. Plan a {distance} run for today.\n\n"
         f"User profile:\n- Goal: {goal}\n- Experience: {experience}\n- {restriction_line}\n"
+        f"{run_type_line}"
         f"{run_context_line}"
-        f"If the requested duration of {duration} seems inappropriate given the recent run history "
-        f"(e.g. a sudden large jump beyond normal progression, or too much given recent fatigue), "
-        f"briefly note this concern at the very start — but still provide a full plan for the requested {duration}.\n"
+        f"If {distance} seems like a significant jump from the user's recent distances "
+        f"(e.g. beyond normal progression or risky given recent fatigue), "
+        f"briefly flag this at the start — but still provide a full plan for the requested {distance}.\n"
         f"{variation_line}\n\n"
         f"Provide a structured run plan in markdown with:\n"
-        f"1. **Recommended Run Type** (e.g. Easy Recovery, Tempo, Intervals, Long Run, Fartlek)\n"
-        f"   — Explain why this type suits today given recent training load and fatigue\n"
-        f"2. **Route & Elevation** — recommend a flat, hilly, or mixed route and explain why "
-        f"(reference recent elevation data if available)\n"
-        f"3. **Structure** — warm-up, main effort, cool-down with specific paces or effort levels "
-        f"(use min/km pace referencing recent pace data, or RPE 1–10 if no data)\n"
-        f"4. **Target Distance or Duration** — based on recent run history\n"
-        f"5. **Key Metrics to Watch** — target HR zones, pace windows, or effort cues\n"
-        f"6. **Post-run** — brief recovery note (stretches, nutrition timing)\n\n"
+        f"1. **Run Type** (e.g. Easy Recovery, Tempo, Intervals, Long Run, Fartlek, Hill Reps, Sprint Session)\n"
+        f"   — Explain why this suits today given recent training load\n"
+        f"2. **Structure** — warm-up, main effort, cool-down with specific paces or effort levels "
+        f"(use min/km referencing recent pace data, or RPE 1–10 if no data)\n"
+        f"3. **Target Distance** — {distance}, broken down across the structure above\n"
+        f"4. **Key Metrics to Watch** — target HR zones, pace windows, or effort cues\n"
+        f"5. **Post-run** — brief recovery note (stretches, nutrition timing)\n\n"
         f"Keep pacing guidance concrete and practical, referencing the user's actual recent pace where available."
     )
     with client.messages.stream(
@@ -686,6 +688,8 @@ def init_state():
         "experience": "Intermediate",
         "restrictions": "",
         "duration": "60 min",
+        "run_distance": "5k",
+        "run_type": "Any",
         "fitbit_token": None,
         "fitbit_activities": [],
         "fitbit_error": None,
@@ -813,14 +817,8 @@ def render_activity():
 def render_preferences():
     activity_type = st.session_state.get("activity_type")
 
-    # Preferences section
     st.header("Your Preferences")
 
-    st.segmented_control(
-        "Session duration", ["30 min", "45 min", "60 min", "90 min"],
-        key="_wgt_duration",
-        default=st.session_state.get("duration"),
-    )
     restrictions = st.text_input(
         "Injuries or limitations",
         value=st.session_state.restrictions,
@@ -831,7 +829,32 @@ def render_preferences():
     mode = st.session_state.get("mode") or "By muscle group"
     focus_groups: list[str] = []
 
-    if activity_type == "workout":
+    if activity_type == "run":
+        st.segmented_control(
+            "Distance", ["2k", "5k", "8k", "10k", "12k", "14k", "Other"],
+            key="_wgt_run_distance",
+            default=st.session_state.get("run_distance") if st.session_state.get("run_distance") in ["2k", "5k", "8k", "10k", "12k", "14k", "Other"] else "5k",
+        )
+        run_distance_other = ""
+        if st.session_state.get("_wgt_run_distance") == "Other":
+            run_distance_other = st.text_input(
+                "Enter distance (e.g. 6k, half marathon)",
+                value="" if st.session_state.get("run_distance") in ["2k", "5k", "8k", "10k", "12k", "14k"] else st.session_state.get("run_distance", ""),
+                placeholder="e.g. 6k",
+            )
+            btn_disabled = not run_distance_other.strip()
+        st.segmented_control(
+            "Type", ["Any", "Flat", "Hills", "Sprints"],
+            key="_wgt_run_type",
+            default=st.session_state.get("run_type", "Any"),
+        )
+
+    else:
+        st.segmented_control(
+            "Session duration", ["30 min", "45 min", "60 min", "90 min"],
+            key="_wgt_duration",
+            default=st.session_state.get("duration"),
+        )
         st.segmented_control(
             "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
             key="_wgt_goal",
@@ -863,14 +886,17 @@ def render_preferences():
             )
 
     if st.button("Continue →", type="primary", disabled=btn_disabled):
-        st.session_state.duration     = st.session_state._wgt_duration or "60 min"
         st.session_state.restrictions = restrictions
         st.session_state.workout      = ""
         st.session_state.run_plan     = ""
         st.session_state.variation    = 0
         if activity_type == "run":
-            st.session_state.stage = "run"
+            raw = st.session_state.get("_wgt_run_distance") or "5k"
+            st.session_state.run_distance = run_distance_other.strip() if raw == "Other" else raw
+            st.session_state.run_type     = st.session_state.get("_wgt_run_type") or "Any"
+            st.session_state.stage        = "run"
         else:
+            st.session_state.duration     = st.session_state._wgt_duration or "60 min"
             st.session_state.goal         = st.session_state._wgt_goal or "Muscle"
             st.session_state.experience   = st.session_state._wgt_experience or "Intermediate"
             st.session_state.mode         = mode
@@ -1059,9 +1085,8 @@ def render_run():
     st.header("Your Run Plan")
 
     caption_parts = [
-        f"Goal: **{st.session_state.goal}**",
-        f"Experience: **{st.session_state.experience}**",
-        f"Duration: **{st.session_state.duration}**",
+        f"Distance: **{st.session_state.run_distance}**",
+        f"Type: **{st.session_state.run_type}**",
     ]
     if st.session_state.variation > 0:
         caption_parts.append(f"Variation **#{st.session_state.variation}**")
@@ -1083,8 +1108,8 @@ def render_run():
             run_context = get_run_context_fitbit(st.session_state.fitbit_activities)
         full_text = st.write_stream(build_run_suggestion_stream(
             st.session_state.goal, st.session_state.experience,
-            st.session_state.restrictions, st.session_state.duration,
-            run_context, st.session_state.variation,
+            st.session_state.restrictions, st.session_state.run_distance,
+            st.session_state.run_type, run_context, st.session_state.variation,
         ))
         st.session_state.run_plan = full_text
     else:
