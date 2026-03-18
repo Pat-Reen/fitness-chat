@@ -360,6 +360,10 @@ def fitbit_activity_summary(activities: list) -> str:
         calories = a.get("calories")
         if calories:
             parts.append(f"{calories} kcal")
+        if is_run:
+            elev = a.get("elevationGain")
+            if elev:
+                parts.append(f"{elev:.0f} m elev gain")
         zones = a.get("heartRateZones", [])
         peak  = next((z for z in zones if z.get("name") == "Peak"), None)
         if peak and peak.get("minutes", 0) > 0:
@@ -411,7 +415,91 @@ def garmin_activity_summary(activities: list) -> str:
         calories = a.get("calories")
         if calories:
             parts.append(f"{round(calories)} kcal")
+        if is_run:
+            elev_gain = a.get("elevationGain")
+            if elev_gain:
+                parts.append(f"{elev_gain:.0f} m elev gain")
         aerobic  = a.get("aerobicTrainingEffect")
+        anaerobic = a.get("anaerobicTrainingEffect")
+        if aerobic is not None and aerobic > 0:
+            parts.append(f"aerobic TE {aerobic:.1f}")
+        if anaerobic is not None and anaerobic > 0:
+            parts.append(f"anaerobic TE {anaerobic:.1f}")
+        lines.append(f"- {day}: {name} ({', '.join(parts)})")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Run-specific activity context
+# ---------------------------------------------------------------------------
+
+def get_run_context_fitbit(activities: list) -> str:
+    """Detailed summary of only run activities from Fitbit data."""
+    runs = [a for a in activities if any(kw in a.get("activityName", "").lower() for kw in _FITBIT_RUN_KEYWORDS)]
+    if not runs:
+        return ""
+    lines = []
+    for a in runs[:7]:
+        name     = a.get("activityName", "Run")
+        duration = round(a.get("duration", 0) / 60000)
+        day      = a.get("startTime", "")[:10]
+        parts    = [f"{duration} min"]
+        dist = a.get("distance")
+        if dist:
+            parts.append(f"{dist:.2f} km")
+            if duration > 0:
+                pace_secs = (duration * 60) / dist
+                parts.append(f"{int(pace_secs // 60)}:{int(pace_secs % 60):02d} /km")
+        avg_hr = a.get("averageHeartRate")
+        if avg_hr:
+            parts.append(f"avg HR {avg_hr} bpm")
+        calories = a.get("calories")
+        if calories:
+            parts.append(f"{calories} kcal")
+        elev = a.get("elevationGain")
+        if elev:
+            parts.append(f"{elev:.0f} m elev gain")
+        zones = a.get("heartRateZones", [])
+        peak  = next((z for z in zones if z.get("name") == "Peak"), None)
+        if peak and peak.get("minutes", 0) > 0:
+            parts.append(f"{peak['minutes']} min in peak HR zone")
+        lines.append(f"- {day}: {name} ({', '.join(parts)})")
+    return "\n".join(lines)
+
+
+def get_run_context_garmin(activities: list) -> str:
+    """Detailed summary of only run activities from Garmin data."""
+    runs = [a for a in activities if "running" in a.get("activityType", {}).get("typeKey", "").lower()]
+    if not runs:
+        return ""
+    lines = []
+    for a in runs[:7]:
+        name     = a.get("activityName") or "Run"
+        duration = round(a.get("duration", 0) / 60)
+        day      = (a.get("startTimeLocal") or "")[:10]
+        parts    = [f"{duration} min"]
+        dist_m = a.get("distance")
+        if dist_m:
+            dist_km = dist_m / 1000
+            parts.append(f"{dist_km:.2f} km")
+            avg_speed = a.get("averageSpeed")
+            if avg_speed and avg_speed > 0:
+                pace_secs = 1000 / avg_speed
+                parts.append(f"{int(pace_secs // 60)}:{int(pace_secs % 60):02d} /km")
+        avg_hr = a.get("averageHR")
+        max_hr = a.get("maxHR")
+        if avg_hr:
+            hr_str = f"avg HR {avg_hr} bpm"
+            if max_hr:
+                hr_str += f" / max {max_hr} bpm"
+            parts.append(hr_str)
+        calories = a.get("calories")
+        if calories:
+            parts.append(f"{round(calories)} kcal")
+        elev_gain = a.get("elevationGain")
+        if elev_gain:
+            parts.append(f"{elev_gain:.0f} m elev gain")
+        aerobic   = a.get("aerobicTrainingEffect")
         anaerobic = a.get("anaerobicTrainingEffect")
         if aerobic is not None and aerobic > 0:
             parts.append(f"aerobic TE {aerobic:.1f}")
@@ -532,6 +620,49 @@ def build_equipment_workout_stream(goal, experience, restrictions, duration, equ
         for text in stream.text_stream:
             yield text
 
+def build_run_suggestion_stream(goal, experience, restrictions, duration, run_context, variation):
+    restrictions = sanitise_restrictions(restrictions)
+    restriction_line = (
+        f"The user has these restrictions/injuries: {restrictions}. Provide modifications where relevant."
+        if restrictions else "The user has no injuries or limitations."
+    )
+    variation_line = (
+        f"\nThis is variation #{variation} — suggest a meaningfully different run type or structure."
+        if variation > 0 else ""
+    )
+    run_context_line = (
+        f"\nRecent run history (last 7 days):\n{run_context}\n"
+        f"Use this data — distance, pace, elevation gain, HR, training effect — to gauge current fitness "
+        f"and training load. Recommend a run type for today that balances training stimulus with recovery.\n"
+        if run_context else
+        "No recent run data available — suggest a run appropriate for the user's goal and experience level.\n"
+    )
+    prompt = (
+        f"You are an expert running coach. Based on the user's recent run history, "
+        f"suggest a specific run for today that fits within {duration}.\n\n"
+        f"User profile:\n- Goal: {goal}\n- Experience: {experience}\n- {restriction_line}\n"
+        f"{run_context_line}"
+        f"{variation_line}\n\n"
+        f"Provide a structured run plan in markdown with:\n"
+        f"1. **Recommended Run Type** (e.g. Easy Recovery, Tempo, Intervals, Long Run, Fartlek)\n"
+        f"   — Explain why this type suits today given recent training load and fatigue\n"
+        f"2. **Route & Elevation** — recommend a flat, hilly, or mixed route and explain why "
+        f"(reference recent elevation data if available)\n"
+        f"3. **Structure** — warm-up, main effort, cool-down with specific paces or effort levels "
+        f"(use min/km pace referencing recent pace data, or RPE 1–10 if no data)\n"
+        f"4. **Target Distance or Duration** — based on recent run history\n"
+        f"5. **Key Metrics to Watch** — target HR zones, pace windows, or effort cues\n"
+        f"6. **Post-run** — brief recovery note (stretches, nutrition timing)\n\n"
+        f"Keep pacing guidance concrete and practical, referencing the user's actual recent pace where available."
+    )
+    with client.messages.stream(
+        model="claude-sonnet-4-6", max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    ) as stream:
+        for text in stream.text_stream:
+            yield text
+
+
 # ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
@@ -541,10 +672,12 @@ def init_state():
         "stage": "preferences",
         "mode": "By muscle group",
         "workout_mode": "muscle",
+        "activity_type": None,
         "focus_groups": [],
         "selected": [],
         "equipment": [],
         "workout": "",
+        "run_plan": "",
         "variation": 0,
         "goal": "Muscle",
         "experience": "Intermediate",
@@ -567,14 +700,19 @@ def init_state():
 # ---------------------------------------------------------------------------
 
 def render_step_indicator():
-    mode = st.session_state.mode or "By muscle group"
-    stage = st.session_state.stage
-    if mode == "By muscle group":
-        steps  = ["preferences", "selection", "workout"]
-        labels = ["Preferences",  "Exercises",  "Workout"]
+    mode          = st.session_state.mode or "By muscle group"
+    stage         = st.session_state.stage
+    activity_type = st.session_state.get("activity_type")
+
+    if stage == "run" or activity_type == "run":
+        steps  = ["preferences", "activity_type", "run"]
+        labels = ["Preferences",  "Activity",       "Run Plan"]
+    elif mode == "By muscle group":
+        steps  = ["preferences", "activity_type", "selection", "workout"]
+        labels = ["Preferences",  "Activity",       "Exercises",  "Workout"]
     else:
-        steps  = ["preferences", "equipment", "workout"]
-        labels = ["Preferences",  "Equipment",  "Workout"]
+        steps  = ["preferences", "activity_type", "equipment", "workout"]
+        labels = ["Preferences",  "Activity",       "Equipment",  "Workout"]
 
     current = steps.index(stage) if stage in steps else 0
     pills = []
@@ -691,7 +829,6 @@ def render_preferences():
             options=MUSCLE_GROUPS,
             default=st.session_state.focus_groups or [],
         )
-        btn_label    = "Select Exercises →"
         btn_disabled = len(focus_groups) == 0
     else:
         focus_groups = st.multiselect(
@@ -699,35 +836,22 @@ def render_preferences():
             options=MUSCLE_GROUPS,
             default=st.session_state.focus_groups or [],
         )
-        btn_label    = "Select Equipment →"
         btn_disabled = False
 
-    if st.button(btn_label, type="primary", disabled=btn_disabled):
+    if st.button("Continue →", type="primary", disabled=btn_disabled):
         # Persist widget-managed values — segmented_control resets its key to None
         # when the widget is not rendered (i.e. after navigating away from this page)
-        st.session_state.goal         = st.session_state._wgt_goal or "Muscle"
-        st.session_state.experience   = st.session_state._wgt_experience or "Intermediate"
-        st.session_state.duration     = st.session_state._wgt_duration or "60 min"
-        st.session_state.mode         = mode
-        st.session_state.restrictions = restrictions
-        st.session_state.focus_groups = focus_groups
-        st.session_state.workout      = ""
-
-        if mode == "By muscle group":
-            seen: set[str] = set()
-            preselected: list[str] = []
-            for group in focus_groups:
-                for ex in EXERCISES.get(group, []):
-                    if ex not in seen:
-                        seen.add(ex)
-                        preselected.append(ex)
-            st.session_state.selected  = preselected
-            st.session_state.variation = 0
-            st.session_state.stage     = "selection"
-        else:
-            st.session_state.variation = 0
-            st.session_state.stage     = "equipment"
-
+        st.session_state.goal          = st.session_state._wgt_goal or "Muscle"
+        st.session_state.experience    = st.session_state._wgt_experience or "Intermediate"
+        st.session_state.duration      = st.session_state._wgt_duration or "60 min"
+        st.session_state.mode          = mode
+        st.session_state.restrictions  = restrictions
+        st.session_state.focus_groups  = focus_groups
+        st.session_state.workout       = ""
+        st.session_state.run_plan      = ""
+        st.session_state.activity_type = None
+        st.session_state.variation     = 0
+        st.session_state.stage         = "activity_type"
         st.rerun()
 
 
@@ -858,6 +982,97 @@ def render_equipment():
             st.rerun()
 
 
+def render_activity_type():
+    st.header("What's Today's Session?")
+    st.caption("Choose the type of training you want to do.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Run", type="primary", use_container_width=True):
+            st.session_state.activity_type = "run"
+            st.session_state.run_plan      = ""
+            st.session_state.variation     = 0
+            st.session_state.stage         = "run"
+            st.rerun()
+    with col2:
+        if st.button("Workout", type="primary", use_container_width=True):
+            st.session_state.activity_type = "workout"
+            mode         = st.session_state.mode
+            focus_groups = st.session_state.focus_groups
+            if mode == "By muscle group":
+                seen: set[str] = set()
+                preselected: list[str] = []
+                for group in focus_groups:
+                    for ex in EXERCISES.get(group, []):
+                        if ex not in seen:
+                            seen.add(ex)
+                            preselected.append(ex)
+                st.session_state.selected = preselected
+                st.session_state.stage    = "selection"
+            else:
+                st.session_state.stage = "equipment"
+            st.rerun()
+
+    st.divider()
+    if st.button("← Back"):
+        st.session_state.stage = "preferences"
+        st.rerun()
+
+
+def render_run():
+    st.markdown(PRINT_CSS, unsafe_allow_html=True)
+    st.header("Your Run Plan")
+
+    caption_parts = [
+        f"Goal: **{st.session_state.goal}**",
+        f"Experience: **{st.session_state.experience}**",
+        f"Duration: **{st.session_state.duration}**",
+    ]
+    if st.session_state.variation > 0:
+        caption_parts.append(f"Variation **#{st.session_state.variation}**")
+    st.caption(" · ".join(caption_parts))
+
+    if not st.session_state.run_plan:
+        components.html(
+            """<script>
+            const el = window.parent.document.querySelector('section[data-testid="stMain"]')
+                     || window.parent.document.querySelector('.main');
+            if (el) el.scrollTop = 0;
+            </script>""",
+            height=0,
+        )
+        profile = get_user_profile()
+        if profile == "nia":
+            run_context = get_run_context_garmin(st.session_state.garmin_activities)
+        else:
+            run_context = get_run_context_fitbit(st.session_state.fitbit_activities)
+        full_text = st.write_stream(build_run_suggestion_stream(
+            st.session_state.goal, st.session_state.experience,
+            st.session_state.restrictions, st.session_state.duration,
+            run_context, st.session_state.variation,
+        ))
+        st.session_state.run_plan = full_text
+    else:
+        st.markdown(st.session_state.run_plan)
+
+    st.divider()
+    if st.button("Regenerate", type="primary", use_container_width=True):
+        st.session_state.variation += 1
+        st.session_state.run_plan  = ""
+        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("← Change Activity", use_container_width=True):
+            st.session_state.stage    = "activity_type"
+            st.session_state.run_plan = ""
+            st.rerun()
+    with col2:
+        if st.button("← Start Over", use_container_width=True):
+            st.session_state.stage = "preferences"
+            st.rerun()
+    components.html(PRINT_BUTTON_HTML, height=40)
+
+
 PRINT_CSS = """
 <style>
 @media print {
@@ -981,6 +1196,10 @@ render_step_indicator()
 stage = st.session_state.stage
 if stage == "preferences":
     render_preferences()
+elif stage == "activity_type":
+    render_activity_type()
+elif stage == "run":
+    render_run()
 elif stage == "selection":
     render_selection()
 elif stage == "equipment":
