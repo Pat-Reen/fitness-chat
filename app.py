@@ -642,6 +642,9 @@ def build_run_suggestion_stream(goal, experience, restrictions, duration, run_co
         f"suggest a specific run for today that fits within {duration}.\n\n"
         f"User profile:\n- Goal: {goal}\n- Experience: {experience}\n- {restriction_line}\n"
         f"{run_context_line}"
+        f"If the requested duration of {duration} seems inappropriate given the recent run history "
+        f"(e.g. a sudden large jump beyond normal progression, or too much given recent fatigue), "
+        f"briefly note this concern at the very start — but still provide a full plan for the requested {duration}.\n"
         f"{variation_line}\n\n"
         f"Provide a structured run plan in markdown with:\n"
         f"1. **Recommended Run Type** (e.g. Easy Recovery, Tempo, Intervals, Long Run, Fartlek)\n"
@@ -669,7 +672,7 @@ def build_run_suggestion_stream(goal, experience, restrictions, duration, run_co
 
 def init_state():
     defaults = {
-        "stage": "preferences",
+        "stage": "activity",
         "mode": "By muscle group",
         "workout_mode": "muscle",
         "activity_type": None,
@@ -705,14 +708,14 @@ def render_step_indicator():
     activity_type = st.session_state.get("activity_type")
 
     if activity_type == "run" or stage == "run":
-        steps  = ["preferences", "run"]
-        labels = ["Preferences",  "Run Plan"]
+        steps  = ["activity", "preferences", "run"]
+        labels = ["Session",  "Preferences",  "Run Plan"]
     elif mode == "By muscle group":
-        steps  = ["preferences", "selection", "workout"]
-        labels = ["Preferences",  "Exercises",  "Workout"]
+        steps  = ["activity", "preferences", "selection", "workout"]
+        labels = ["Session",  "Preferences",  "Exercises",  "Workout"]
     else:
-        steps  = ["preferences", "equipment", "workout"]
-        labels = ["Preferences",  "Equipment",  "Workout"]
+        steps  = ["activity", "preferences", "equipment", "workout"]
+        labels = ["Session",  "Preferences",  "Equipment",  "Workout"]
 
     current = steps.index(stage) if stage in steps else 0
     pills = []
@@ -745,8 +748,7 @@ def render_step_indicator():
 # Stage renderers
 # ---------------------------------------------------------------------------
 
-def render_preferences():
-    # Recent Activity section
+def render_activity():
     st.header("Recent Activity")
 
     selection = st.selectbox(
@@ -793,24 +795,25 @@ def render_preferences():
                 except Exception as e:
                     st.error(f"Garmin connection failed: {e}")
 
-    # Session type selection
     st.divider()
     activity_type = st.session_state.get("activity_type")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Run", type="primary" if activity_type == "run" else "secondary", use_container_width=True):
             st.session_state.activity_type = "run"
+            st.session_state.stage = "preferences"
             st.rerun()
     with col2:
         if st.button("Workout", type="primary" if activity_type == "workout" else "secondary", use_container_width=True):
             st.session_state.activity_type = "workout"
+            st.session_state.stage = "preferences"
             st.rerun()
 
-    if activity_type is None:
-        return
+
+def render_preferences():
+    activity_type = st.session_state.get("activity_type")
 
     # Preferences section
-    st.divider()
     st.header("Your Preferences")
 
     st.segmented_control(
@@ -1100,7 +1103,7 @@ def render_run():
             st.rerun()
     with col2:
         if st.button("← Start Over", use_container_width=True):
-            st.session_state.stage         = "preferences"
+            st.session_state.stage         = "activity"
             st.session_state.activity_type = None
             st.rerun()
     components.html(PRINT_BUTTON_HTML, height=40)
@@ -1193,7 +1196,8 @@ def render_workout():
             st.rerun()
     with print_col:
         if st.button("← Start Over", use_container_width=True):
-            st.session_state.stage = "preferences"
+            st.session_state.stage         = "activity"
+            st.session_state.activity_type = None
             st.rerun()
     components.html(PRINT_BUTTON_HTML, height=40)
 
@@ -1227,7 +1231,9 @@ if "code" in st.query_params and not st.session_state.fitbit_token:
 render_step_indicator()
 
 stage = st.session_state.stage
-if stage == "preferences":
+if stage == "activity":
+    render_activity()
+elif stage == "preferences":
     render_preferences()
 elif stage == "run":
     render_run()
