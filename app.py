@@ -704,15 +704,15 @@ def render_step_indicator():
     stage         = st.session_state.stage
     activity_type = st.session_state.get("activity_type")
 
-    if stage == "run" or activity_type == "run":
-        steps  = ["preferences", "activity_type", "run"]
-        labels = ["Preferences",  "Activity",       "Run Plan"]
+    if activity_type == "run" or stage == "run":
+        steps  = ["preferences", "run"]
+        labels = ["Preferences",  "Run Plan"]
     elif mode == "By muscle group":
-        steps  = ["preferences", "activity_type", "selection", "workout"]
-        labels = ["Preferences",  "Activity",       "Exercises",  "Workout"]
+        steps  = ["preferences", "selection", "workout"]
+        labels = ["Preferences",  "Exercises",  "Workout"]
     else:
-        steps  = ["preferences", "activity_type", "equipment", "workout"]
-        labels = ["Preferences",  "Activity",       "Equipment",  "Workout"]
+        steps  = ["preferences", "equipment", "workout"]
+        labels = ["Preferences",  "Equipment",  "Workout"]
 
     current = steps.index(stage) if stage in steps else 0
     pills = []
@@ -793,19 +793,26 @@ def render_preferences():
                 except Exception as e:
                     st.error(f"Garmin connection failed: {e}")
 
+    # Session type selection
+    st.divider()
+    activity_type = st.session_state.get("activity_type")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Run", type="primary" if activity_type == "run" else "secondary", use_container_width=True):
+            st.session_state.activity_type = "run"
+            st.rerun()
+    with col2:
+        if st.button("Workout", type="primary" if activity_type == "workout" else "secondary", use_container_width=True):
+            st.session_state.activity_type = "workout"
+            st.rerun()
+
+    if activity_type is None:
+        return
+
     # Preferences section
     st.divider()
     st.header("Your Preferences")
-    st.segmented_control(
-        "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
-        key="_wgt_goal",
-        default=st.session_state.get("goal"),
-    )
-    st.segmented_control(
-        "Experience level", ["Beginner", "Intermediate", "Advanced"],
-        key="_wgt_experience",
-        default=st.session_state.get("experience"),
-    )
+
     st.segmented_control(
         "Session duration", ["30 min", "45 min", "60 min", "90 min"],
         key="_wgt_duration",
@@ -816,42 +823,67 @@ def render_preferences():
         value=st.session_state.restrictions,
         placeholder="Leave blank if none",
     )
-    st.segmented_control(
-        "Workout mode", ["By muscle group", "By equipment"],
-        key="_wgt_mode",
-        default=st.session_state.get("mode"),
-    )
 
-    mode = st.session_state._wgt_mode or "By muscle group"
-    if mode == "By muscle group":
-        focus_groups = st.multiselect(
-            "Focus areas (pick 1–3)",
-            options=MUSCLE_GROUPS,
-            default=st.session_state.focus_groups or [],
+    btn_disabled = False
+    mode = st.session_state.get("mode") or "By muscle group"
+    focus_groups: list[str] = []
+
+    if activity_type == "workout":
+        st.segmented_control(
+            "Fitness goal", ["Muscle", "Weight Loss", "Endurance", "General"],
+            key="_wgt_goal",
+            default=st.session_state.get("goal"),
         )
-        btn_disabled = len(focus_groups) == 0
-    else:
-        focus_groups = st.multiselect(
-            "Focus areas (optional — leave blank to let Claude decide)",
-            options=MUSCLE_GROUPS,
-            default=st.session_state.focus_groups or [],
+        st.segmented_control(
+            "Experience level", ["Beginner", "Intermediate", "Advanced"],
+            key="_wgt_experience",
+            default=st.session_state.get("experience"),
         )
-        btn_disabled = False
+        st.segmented_control(
+            "Workout mode", ["By muscle group", "By equipment"],
+            key="_wgt_mode",
+            default=st.session_state.get("mode"),
+        )
+        mode = st.session_state._wgt_mode or "By muscle group"
+        if mode == "By muscle group":
+            focus_groups = st.multiselect(
+                "Focus areas (pick 1–3)",
+                options=MUSCLE_GROUPS,
+                default=st.session_state.focus_groups or [],
+            )
+            btn_disabled = len(focus_groups) == 0
+        else:
+            focus_groups = st.multiselect(
+                "Focus areas (optional — leave blank to let Claude decide)",
+                options=MUSCLE_GROUPS,
+                default=st.session_state.focus_groups or [],
+            )
 
     if st.button("Continue →", type="primary", disabled=btn_disabled):
-        # Persist widget-managed values — segmented_control resets its key to None
-        # when the widget is not rendered (i.e. after navigating away from this page)
-        st.session_state.goal          = st.session_state._wgt_goal or "Muscle"
-        st.session_state.experience    = st.session_state._wgt_experience or "Intermediate"
-        st.session_state.duration      = st.session_state._wgt_duration or "60 min"
-        st.session_state.mode          = mode
-        st.session_state.restrictions  = restrictions
-        st.session_state.focus_groups  = focus_groups
-        st.session_state.workout       = ""
-        st.session_state.run_plan      = ""
-        st.session_state.activity_type = None
-        st.session_state.variation     = 0
-        st.session_state.stage         = "activity_type"
+        st.session_state.duration     = st.session_state._wgt_duration or "60 min"
+        st.session_state.restrictions = restrictions
+        st.session_state.workout      = ""
+        st.session_state.run_plan     = ""
+        st.session_state.variation    = 0
+        if activity_type == "run":
+            st.session_state.stage = "run"
+        else:
+            st.session_state.goal         = st.session_state._wgt_goal or "Muscle"
+            st.session_state.experience   = st.session_state._wgt_experience or "Intermediate"
+            st.session_state.mode         = mode
+            st.session_state.focus_groups = focus_groups
+            if mode == "By muscle group":
+                seen: set[str] = set()
+                preselected: list[str] = []
+                for group in focus_groups:
+                    for ex in EXERCISES.get(group, []):
+                        if ex not in seen:
+                            seen.add(ex)
+                            preselected.append(ex)
+                st.session_state.selected = preselected
+                st.session_state.stage    = "selection"
+            else:
+                st.session_state.stage = "equipment"
         st.rerun()
 
 
@@ -1062,13 +1094,14 @@ def render_run():
         st.rerun()
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("← Change Activity", use_container_width=True):
-            st.session_state.stage    = "activity_type"
+        if st.button("← Change", use_container_width=True):
+            st.session_state.stage    = "preferences"
             st.session_state.run_plan = ""
             st.rerun()
     with col2:
         if st.button("← Start Over", use_container_width=True):
-            st.session_state.stage = "preferences"
+            st.session_state.stage         = "preferences"
+            st.session_state.activity_type = None
             st.rerun()
     components.html(PRINT_BUTTON_HTML, height=40)
 
@@ -1196,8 +1229,6 @@ render_step_indicator()
 stage = st.session_state.stage
 if stage == "preferences":
     render_preferences()
-elif stage == "activity_type":
-    render_activity_type()
 elif stage == "run":
     render_run()
 elif stage == "selection":
