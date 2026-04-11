@@ -1,11 +1,14 @@
 /**
- * One-time script: seed Firestore with exercises, equipment, and initial user docs.
+ * One-time script: seed Cloud Firestore with exercises, equipment, and user docs.
  *
  * Usage:
  *   npx ts-node --project tsconfig.scripts.json scripts/seed-firestore.ts
  *
- * Set env vars: FIREBASE_SERVICE_ACCOUNT_JSON, NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
- * and optionally PAT_UID, NIA_UID (Firebase Auth UIDs from the Firebase console).
+ * Required env vars (in .env.local):
+ *   GCP_PROJECT_ID
+ *   GOOGLE_APPLICATION_CREDENTIALS  (path to service-account key JSON)
+ *   PAT_EMAIL, NIA_EMAIL
+ *   GARMIN_NIA_EMAIL, GARMIN_NIA_PASSWORD
  */
 
 import * as path from "path";
@@ -13,8 +16,7 @@ import * as dotenv from "dotenv";
 
 dotenv.config({ path: path.join(__dirname, "../.env.local") });
 
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { Firestore } from "@google-cloud/firestore";
 
 const EXERCISES: Record<string, string[]> = {
   Chest: [
@@ -73,13 +75,7 @@ const EQUIPMENT = [
 ];
 
 async function main() {
-  if (getApps().length === 0) {
-    const svcAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!svcAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON not set");
-    initializeApp({ credential: cert(JSON.parse(svcAccount)) });
-  }
-
-  const db = getFirestore();
+  const db = new Firestore({ projectId: process.env.GCP_PROJECT_ID });
   const batch = db.batch();
 
   // Seed exercises
@@ -93,24 +89,24 @@ async function main() {
   await batch.commit();
   console.log("Seeded exercises and equipment.");
 
-  // Seed user docs (update UIDs from Firebase Auth console)
-  const patUid = process.env.PAT_UID;
-  const niaUid = process.env.NIA_UID;
+  // Seed user docs (keyed by email)
+  const patEmail = process.env.PAT_EMAIL;
+  const niaEmail = process.env.NIA_EMAIL;
 
-  if (patUid) {
-    await db.collection("users").doc(patUid).set({
-      email: process.env.PAT_EMAIL ?? "",
+  if (patEmail) {
+    await db.collection("users").doc(patEmail).set({
+      email: patEmail,
       displayName: "Pat",
       platform: "fitbit",
     }, { merge: true });
-    console.log(`Seeded user: Pat (${patUid})`);
+    console.log(`Seeded user: Pat (${patEmail})`);
   } else {
-    console.log("PAT_UID not set — skipping Pat user doc");
+    console.log("PAT_EMAIL not set — skipping Pat");
   }
 
-  if (niaUid) {
-    await db.collection("users").doc(niaUid).set({
-      email: process.env.NIA_EMAIL ?? "",
+  if (niaEmail) {
+    await db.collection("users").doc(niaEmail).set({
+      email: niaEmail,
       displayName: "Nia",
       platform: "garmin",
       garminCredentials: {
@@ -118,9 +114,9 @@ async function main() {
         password: process.env.GARMIN_NIA_PASSWORD ?? "",
       },
     }, { merge: true });
-    console.log(`Seeded user: Nia (${niaUid})`);
+    console.log(`Seeded user: Nia (${niaEmail})`);
   } else {
-    console.log("NIA_UID not set — skipping Nia user doc");
+    console.log("NIA_EMAIL not set — skipping Nia");
   }
 
   console.log("Done.");

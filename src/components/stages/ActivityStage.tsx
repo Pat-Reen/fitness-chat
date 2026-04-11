@@ -35,9 +35,7 @@ export default function ActivityStage({ user, state, setState, onNext }: Props) 
     const endpoint =
       user.platform === "fitbit" ? "/api/fitbit/activities" : "/api/garmin";
 
-    fetch(endpoint, {
-      headers: { Authorization: `Bearer ${document.cookie.match(/session=([^;]+)/)?.[1] ?? ""}` },
-    })
+    fetch(endpoint)
       .then((r) => {
         if (r.status === 401 && user.platform === "fitbit") {
           setFitbitNeedsAuth(true);

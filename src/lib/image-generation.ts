@@ -1,4 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getImagesBucket, getDb } from "./gcp";
+import { exerciseToSlug } from "./exercises";
+import type { ExerciseImage } from "@/types";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -40,9 +43,51 @@ export async function generateExerciseSvg(
     .map((b) => (b as { type: "text"; text: string }).text)
     .join("");
 
-  // Extract SVG from response
   const svgMatch = text.match(/<svg[\s\S]*<\/svg>/i);
   if (!svgMatch) throw new Error(`No SVG found in Claude response for: ${exerciseName}`);
-
   return svgMatch[0];
+}
+
+/**
+ * Generate an SVG, upload it to GCS, and record metadata in Firestore.
+ * Returns the public GCS URL.
+ */
+export async function generateAndSaveExerciseImage(
+  exerciseName: string,
+  stylePrompt?: string
+): Promise<string> {
+  const db = getDb();
+  const bucket = getImagesBucket();
+
+  // Load style from Firestore if not provided
+  if (!stylePrompt) {
+    const styleDoc = await db.collection("image_style").doc("default").get();
+    stylePrompt = styleDoc.exists
+      ? (styleDoc.data()?.prompt as string)
+      : DEFAULT_IMAGE_STYLE;
+  }
+
+  const svg = await generateExerciseSvg(exerciseName, stylePrompt);
+  const slug = exerciseToSlug(exerciseName);
+
+  const file = bucket.file(`exercises/${slug}.svg`);
+  await file.save(Buffer.from(svg, "utf-8"), {
+    metadata: {
+      contentType: "image/svg+xml",
+      cacheControl: "public, max-age=31536000",
+    },
+  });
+  await file.makePublic();
+
+  const imageUrl = `https://storage.googleapis.com/${bucket.name}/exercises/${slug}.svg`;
+
+  const record: Omit<ExerciseImage, "slug"> = {
+    exerciseName,
+    imageUrl,
+    generatedAt: Date.now(),
+    style: stylePrompt,
+  };
+  await db.collection("exercise_images").doc(slug).set(record);
+
+  return imageUrl;
 }

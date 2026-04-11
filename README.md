@@ -1,48 +1,80 @@
-# fitness-chat
+# Fitness Chat
 
-A personalized AI fitness companion that generates tailored workout plans based on your goals, experience level, and available equipment.
+AI-powered personalised workout and run planner. Built with Next.js, deployed on Google Cloud Run, backed by Cloud Firestore and Cloud Storage.
+
+> **Original Streamlit app:** [`app.py`](./app.py) is kept for reference. The active app is the Next.js version in `src/`.
 
 ## Features
 
-- **Preference-based setup** — configure your fitness goal, experience level, session duration, and any injuries or limitations
-- **Two workout modes:**
-  - **By muscle group** — select focus areas, then pick specific exercises from a curated list
-  - **By equipment** — select what equipment you have available and let Claude design the session
-- **Structured workout generation** — workouts are organized into blocks of 3–4 alternating exercises, defaulting to 20 reps per set
-- **Generate Different Workout** — get a meaningfully varied alternative without changing your settings
+- **Google sign-in** — authorised users only (Pat and Nia by default, scalable via Firestore)
+- **Workout planner** — by muscle group or by equipment; Claude generates structured plans with a consistent table format
+- **Run planner** — personalised run plans with pacing guidance using recent activity data
+- **Fitness tracker integration** — Fitbit (OAuth, tokens auto-refresh from Firestore) and Garmin Connect (auto-login from stored credentials)
+- **Exercise images** — simple SVG diagrams for machine/cable exercises, generated once by Claude and served from Cloud Storage; embedded in workout plans via Claude tool use
+- **Workout history** — saved per-user in Firestore; recent summaries fed back into Claude as context for future workouts
+- **Admin UI** — edit exercises/equipment lists, manage exercise images (regenerate or upload custom SVGs)
 
-## Technologies
+## Tech Stack
 
-- **Python**
-- **Anthropic Claude** (`claude-sonnet-4-6`) — workout generation
-- **Streamlit** — web UI
+| Layer | Technology |
+|---|---|
+| Frontend + API | Next.js 16 (App Router, TypeScript, Tailwind CSS) |
+| Auth | next-auth v5 · Google OAuth |
+| Database | Cloud Firestore |
+| File storage | Cloud Storage (GCS) |
+| Hosting | Cloud Run |
+| AI | Anthropic Claude (claude-sonnet-4-6) |
 
-## How to Run Locally
+## Quick Start
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Pat-Reen/fitness-chat.git
-   cd fitness-chat
-   ```
+See **[SETUP.md](./SETUP.md)** for full setup and deployment instructions.
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+cp .env.local.example .env.local
+# fill in all values in .env.local
+npm install
+npm run dev       # http://localhost:3000
+```
 
-3. **Set up your API key:**
+## Project Structure
 
-   Create a `.env` file in the project root:
-   ```
-   ANTHROPIC_API_KEY=your_api_key_here
-   ```
+```
+src/
+├── app/                     # Pages + API routes
+│   ├── page.tsx             # Main workout flow (stage machine)
+│   ├── login/               # Google sign-in page
+│   ├── history/             # Saved workout history
+│   ├── admin/               # Exercise/equipment/image management
+│   └── api/
+│       ├── auth/            # next-auth handlers
+│       ├── workout/         # Generate + save workouts (Claude tool use)
+│       ├── run/             # Generate run plans (streaming)
+│       ├── fitbit/          # OAuth + activities
+│       ├── garmin/          # Activities (auto-login)
+│       ├── exercise-images/ # Generate/regenerate/upload SVGs
+│       ├── admin/           # Edit exercises and equipment
+│       ├── history/         # Fetch saved workouts
+│       └── profile/         # Current user profile
+├── components/
+│   ├── stages/              # ActivityStage → WorkoutDisplay/RunDisplay
+│   └── admin/               # ExerciseGroupEditor, EquipmentEditor, ImageManager
+├── lib/
+│   ├── gcp.ts               # Firestore + Storage singleton clients
+│   ├── auth.ts              # requireAuth() helper for API routes
+│   ├── exercises.ts         # EXERCISES dict, EQUIPMENT list, machine list
+│   ├── prompts.ts           # Prompt builders for workout/run generation
+│   ├── workout-format.ts    # Format template + trimWorkout() for Firestore saves
+│   ├── fitbit.ts            # Token load/refresh, OAuth helpers
+│   ├── garmin.ts            # Garmin activity fetching
+│   └── image-generation.ts  # Claude SVG generation + GCS upload
+├── auth.ts                  # next-auth config (Google provider + allowlist check)
+├── proxy.ts                 # Route guard middleware
+└── types/index.ts           # Shared TypeScript types
 
-4. **Run the app:**
-   ```bash
-   python -m streamlit run app.py
-   ```
-
-   The app will be available at `http://localhost:8501`.
+scripts/
+├── seed-firestore.ts        # One-time: seed exercises, equipment, user docs
+└── generate-exercise-images.ts  # One-time: generate + upload 23 SVG diagrams
+```
 
 ## License
 

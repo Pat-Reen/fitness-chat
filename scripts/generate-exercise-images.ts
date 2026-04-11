@@ -1,26 +1,26 @@
 /**
- * One-time script: generate SVG images for all machine exercises and upload to Firebase Storage.
- *
- * Prerequisites:
- *   - Set ANTHROPIC_API_KEY, FIREBASE_SERVICE_ACCOUNT_JSON, NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
- *     in .env.local (or export them in your shell)
- *   - npm install dotenv (or use: npx dotenv-cli -e .env.local -- npx ts-node ...)
+ * One-time script: generate SVG images for all machine exercises,
+ * upload to Cloud Storage, and record metadata in Cloud Firestore.
  *
  * Usage:
  *   npx ts-node --project tsconfig.scripts.json scripts/generate-exercise-images.ts
+ *
+ * Required env vars (in .env.local):
+ *   GCP_PROJECT_ID
+ *   GCS_BUCKET_NAME
+ *   ANTHROPIC_API_KEY
+ *   GOOGLE_APPLICATION_CREDENTIALS  (path to service-account key JSON)
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import * as dotenv from "dotenv";
 
-// Load .env.local
 dotenv.config({ path: path.join(__dirname, "../.env.local") });
 
 import Anthropic from "@anthropic-ai/sdk";
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
+import { Firestore } from "@google-cloud/firestore";
+import { Storage } from "@google-cloud/storage";
 
 const MACHINE_EXERCISES = [
   "Cable Fly / Crossover",
@@ -54,35 +54,23 @@ const DEFAULT_STYLE =
   "no fill colours, no gradients, clean line art only. Include a small text label at the bottom.";
 
 function exerciseToSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-async function generateSvg(
-  client: Anthropic,
-  exerciseName: string,
-  stylePrompt: string
-): Promise<string> {
+async function generateSvg(client: Anthropic, name: string, style: string): Promise<string> {
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 2048,
-    messages: [
-      {
-        role: "user",
-        content:
-          `Generate an SVG diagram showing how to perform the exercise: "${exerciseName}".\n\n` +
-          `Style requirements: ${stylePrompt}\n\n` +
-          `Requirements:\n` +
-          `- Output ONLY the SVG code, starting with <svg and ending with </svg>\n` +
-          `- No markdown, no explanation, no code fences\n` +
-          `- viewBox must be "0 0 200 200"\n` +
-          `- Show the key equipment and the stick figure in the starting position\n` +
-          `- Include a label text element at the bottom with the exercise name\n` +
-          `- Keep it simple and recognisable`,
-      },
-    ],
+    messages: [{
+      role: "user",
+      content:
+        `Generate an SVG diagram showing how to perform: "${name}".\n\n` +
+        `Style: ${style}\n\n` +
+        `- Output ONLY raw SVG (starting <svg, ending </svg>)\n` +
+        `- viewBox="0 0 200 200"\n` +
+        `- Simple stick figure + labeled equipment\n` +
+        `- Label at the bottom with exercise name`,
+    }],
   });
 
   const text = message.content
@@ -90,95 +78,64 @@ async function generateSvg(
     .map((b) => (b as { type: "text"; text: string }).text)
     .join("");
 
-  const svgMatch = text.match(/<svg[\s\S]*<\/svg>/i);
-  if (!svgMatch) throw new Error(`No SVG in response for: ${exerciseName}`);
-  return svgMatch[0];
+  const match = text.match(/<svg[\s\S]*<\/svg>/i);
+  if (!match) throw new Error(`No SVG in response for: ${name}`);
+  return match[0];
 }
 
 async function main() {
-  if (getApps().length === 0) {
-    const svcAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!svcAccount) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON not set");
-    initializeApp({
-      credential: cert(JSON.parse(svcAccount)),
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    });
-  }
+  const bucketName = process.env.GCS_BUCKET_NAME;
+  if (!bucketName) throw new Error("GCS_BUCKET_NAME not set");
 
-  const db = getFirestore();
-  const storage = getStorage();
+  const db = new Firestore({ projectId: process.env.GCP_PROJECT_ID });
+  const storage = new Storage({ projectId: process.env.GCP_PROJECT_ID });
+  const bucket = storage.bucket(bucketName);
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  // Load or seed global style prompt
+  // Load or seed the style prompt
   const styleDoc = await db.collection("image_style").doc("default").get();
-  const stylePrompt = styleDoc.exists
-    ? (styleDoc.data()?.prompt as string)
-    : DEFAULT_STYLE;
-
+  const style = styleDoc.exists ? (styleDoc.data()?.prompt as string) : DEFAULT_STYLE;
   if (!styleDoc.exists) {
     await db.collection("image_style").doc("default").set({ prompt: DEFAULT_STYLE });
-    console.log("Seeded image_style/default");
+    console.log("Created image_style/default");
   }
 
-  // Create local output dir for inspection
   const outDir = path.join(__dirname, "../.generated-svgs");
   fs.mkdirSync(outDir, { recursive: true });
 
-  const results: Record<string, string> = {};
+  for (const name of MACHINE_EXERCISES) {
+    const slug = exerciseToSlug(name);
 
-  for (const exerciseName of MACHINE_EXERCISES) {
-    const slug = exerciseToSlug(exerciseName);
-
-    // Skip if already exists
     const existing = await db.collection("exercise_images").doc(slug).get();
     if (existing.exists) {
-      console.log(`  skip  ${exerciseName} (already exists)`);
-      results[exerciseName] = existing.data()?.imageUrl as string;
+      console.log(`  skip  ${name}`);
       continue;
     }
 
-    console.log(`  gen   ${exerciseName}...`);
+    console.log(`  gen   ${name} ...`);
     try {
-      const svg = await generateSvg(client, exerciseName, stylePrompt);
-
-      // Save locally
+      const svg = await generateSvg(client, name, style);
       fs.writeFileSync(path.join(outDir, `${slug}.svg`), svg);
 
-      // Upload to Firebase Storage
-      const bucket = storage.bucket();
       const file = bucket.file(`exercises/${slug}.svg`);
       await file.save(Buffer.from(svg, "utf-8"), {
-        metadata: {
-          contentType: "image/svg+xml",
-          cacheControl: "public, max-age=31536000",
-        },
+        metadata: { contentType: "image/svg+xml", cacheControl: "public, max-age=31536000" },
       });
       await file.makePublic();
 
-      const imageUrl = `https://storage.googleapis.com/${bucket.name}/exercises/${slug}.svg`;
-
-      // Save to Firestore
+      const imageUrl = `https://storage.googleapis.com/${bucketName}/exercises/${slug}.svg`;
       await db.collection("exercise_images").doc(slug).set({
-        exerciseName,
-        imageUrl,
-        generatedAt: Date.now(),
-        style: stylePrompt,
+        exerciseName: name, imageUrl, generatedAt: Date.now(), style,
       });
 
-      results[exerciseName] = imageUrl;
-      console.log(`  done  ${exerciseName} → ${imageUrl}`);
-
-      // Brief pause to avoid rate limiting
+      console.log(`  done  ${name}`);
       await new Promise((r) => setTimeout(r, 1000));
     } catch (err) {
-      console.error(`  ERROR ${exerciseName}:`, err);
+      console.error(`  ERROR ${name}:`, err);
     }
   }
 
-  // Write summary JSON
-  const summaryPath = path.join(__dirname, "../src/lib/exercise-images.json");
-  fs.writeFileSync(summaryPath, JSON.stringify(results, null, 2));
-  console.log(`\nDone! Summary written to ${summaryPath}`);
+  console.log("\nAll done.");
 }
 
 main().catch(console.error);

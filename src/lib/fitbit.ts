@@ -1,4 +1,4 @@
-import { getAdminDb } from "./firebase-admin";
+import { getDb } from "./gcp";
 import type { FitbitTokens, Activity } from "@/types";
 
 const FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token";
@@ -69,27 +69,27 @@ async function refreshTokens(tokens: FitbitTokens): Promise<FitbitTokens> {
 }
 
 /**
- * Load Fitbit tokens from Firestore, refresh if expired, write back updated tokens.
+ * Load Fitbit tokens from Firestore (keyed by user email), refresh if expired.
  * Returns null if no tokens stored.
  */
-export async function getValidFitbitToken(uid: string): Promise<string | null> {
-  const db = getAdminDb();
-  const doc = await db.collection("users").doc(uid).get();
+export async function getValidFitbitToken(email: string): Promise<string | null> {
+  const db = getDb();
+  const doc = await db.collection("users").doc(email).get();
   const tokens = doc.data()?.fitbitTokens as FitbitTokens | undefined;
   if (!tokens) return null;
 
   // Refresh if expiring within 5 minutes
   if (tokens.expiresAt - Date.now() < 5 * 60 * 1000) {
     const fresh = await refreshTokens(tokens);
-    await db.collection("users").doc(uid).update({ fitbitTokens: fresh });
+    await db.collection("users").doc(email).update({ fitbitTokens: fresh });
     return fresh.accessToken;
   }
   return tokens.accessToken;
 }
 
-export async function saveFitbitTokens(uid: string, tokens: FitbitTokens): Promise<void> {
-  const db = getAdminDb();
-  await db.collection("users").doc(uid).update({ fitbitTokens: tokens });
+export async function saveFitbitTokens(email: string, tokens: FitbitTokens): Promise<void> {
+  const db = getDb();
+  await db.collection("users").doc(email).update({ fitbitTokens: tokens });
 }
 
 export async function fetchFitbitActivities(accessToken: string): Promise<Activity[]> {
@@ -109,9 +109,7 @@ export async function fetchFitbitActivities(accessToken: string): Promise<Activi
     type: String(a.activityName ?? "Activity"),
     duration: a.duration ? `${Math.round(Number(a.duration) / 60000)} min` : undefined,
     distance:
-      a.distance != null
-        ? `${Number(Number(a.distance).toFixed(2))} km`
-        : undefined,
+      a.distance != null ? `${Number(Number(a.distance).toFixed(2))} km` : undefined,
     heartRate: a.averageHeartRate != null ? `${a.averageHeartRate} bpm avg` : undefined,
     calories: a.calories != null ? Number(a.calories) : undefined,
     trainingEffect: undefined,

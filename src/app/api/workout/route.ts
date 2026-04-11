@@ -1,7 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "@/lib/auth";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getDb } from "@/lib/gcp";
 import { buildWorkoutPrompt, buildEquipmentWorkoutPrompt } from "@/lib/prompts";
 import { formatWorkoutHistory } from "@/lib/workout-format";
 import { exerciseToSlug } from "@/lib/exercises";
@@ -26,8 +26,8 @@ const GET_EXERCISE_IMAGE_TOOL: Anthropic.Tool = {
   },
 };
 
-export async function POST(req: NextRequest) {
-  const user = await requireAuth(req);
+export async function POST(req: Request) {
+  const user = await requireAuth();
   if (!user) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { mode, variation = 0 } = body;
-    const db = getAdminDb();
+    const db = getDb();
 
     // Load recent workout history for context
     const historySnap = await db
       .collection("users")
-      .doc(user.uid)
+      .doc(user.email)
       .collection("workouts")
       .orderBy("createdAt", "desc")
       .limit(5)
@@ -49,7 +49,6 @@ export async function POST(req: NextRequest) {
     const history = historySnap.docs.map((d) => d.data() as WorkoutRecord);
     const workoutHistory = formatWorkoutHistory(history);
 
-    // Build prompt
     const prompt =
       mode === "equipment"
         ? buildEquipmentWorkoutPrompt({
@@ -75,7 +74,7 @@ export async function POST(req: NextRequest) {
             workoutHistory,
           });
 
-    // ── Tool-use loop (non-streaming) ────────────────────────────────────────
+    // Tool-use loop (non-streaming) to resolve image URLs
     const messages: Anthropic.MessageParam[] = [
       { role: "user", content: prompt },
     ];
@@ -98,7 +97,9 @@ export async function POST(req: NextRequest) {
           const exerciseName = (block.input as { exercise_name: string }).exercise_name;
           const slug = exerciseToSlug(exerciseName);
           const imgDoc = await db.collection("exercise_images").doc(slug).get();
-          const imageUrl = imgDoc.exists ? (imgDoc.data()?.imageUrl as string | undefined) : null;
+          const imageUrl = imgDoc.exists
+            ? (imgDoc.data()?.imageUrl as string | undefined)
+            : null;
           return {
             type: "tool_result" as const,
             tool_use_id: block.id,
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── Stream final text to client ──────────────────────────────────────────
+    // Stream final text to client
     const finalText = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
@@ -125,7 +126,6 @@ export async function POST(req: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        // Send in small chunks to simulate streaming UX
         const chunkSize = 16;
         for (let i = 0; i < finalText.length; i += chunkSize) {
           controller.enqueue(encoder.encode(finalText.slice(i, i + chunkSize)));

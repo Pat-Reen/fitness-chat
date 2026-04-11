@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getDb } from "@/lib/gcp";
 import { trimWorkout } from "@/lib/workout-format";
 
-export async function POST(req: NextRequest) {
-  const user = await requireAuth(req);
+export async function POST(req: Request) {
+  const user = await requireAuth();
   if (!user) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
@@ -26,10 +26,10 @@ export async function POST(req: NextRequest) {
       runType: meta.runType,
     });
 
-    const db = getAdminDb();
+    const db = getDb();
     const ref = await db
       .collection("users")
-      .doc(user.uid)
+      .doc(user.email)
       .collection("workouts")
       .add(record);
 

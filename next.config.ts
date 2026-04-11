@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Allow firebase-admin on server only
-  serverExternalPackages: ["firebase-admin"],
+  // Keep GCP Node.js clients server-side only
+  serverExternalPackages: ["@google-cloud/firestore", "@google-cloud/storage"],
 };
 
 export default nextConfig;

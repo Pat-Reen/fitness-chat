@@ -22,12 +22,10 @@ function ImageCard({
     setLoading(true);
     setError(null);
     try {
-      const token = document.cookie.match(/session=([^;]+)/)?.[1] ?? "";
       const res = await fetch(`/api/exercise-images/${image.slug}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ exerciseName: image.exerciseName }),
       });
@@ -46,12 +44,10 @@ function ImageCard({
     setLoading(true);
     setError(null);
     try {
-      const token = document.cookie.match(/session=([^;]+)/)?.[1] ?? "";
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch(`/api/exercise-images/${image.slug}`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
       if (!res.ok) throw new Error("Upload failed");
@@ -114,12 +110,10 @@ export default function ImageManager({ images, onReload }: Props) {
     if (!newExercise.trim()) return;
     setGenerating(newExercise);
     try {
-      const token = document.cookie.match(/session=([^;]+)/)?.[1] ?? "";
       const res = await fetch("/api/exercise-images", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ exerciseName: newExercise.trim() }),
       });

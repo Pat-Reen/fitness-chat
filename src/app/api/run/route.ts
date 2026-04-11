@@ -1,15 +1,15 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "@/lib/auth";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getDb } from "@/lib/gcp";
 import { buildRunPrompt } from "@/lib/prompts";
 import { formatWorkoutHistory } from "@/lib/workout-format";
 import type { WorkoutRecord } from "@/types";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export async function POST(req: NextRequest) {
-  const user = await requireAuth(req);
+export async function POST(req: Request) {
+  const user = await requireAuth();
   if (!user) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
@@ -17,12 +17,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { variation = 0 } = body;
-    const db = getAdminDb();
+    const db = getDb();
 
-    // Load recent history for context
     const historySnap = await db
       .collection("users")
-      .doc(user.uid)
+      .doc(user.email)
       .collection("workouts")
       .orderBy("createdAt", "desc")
       .limit(5)
@@ -42,7 +41,6 @@ export async function POST(req: NextRequest) {
       workoutHistory,
     });
 
-    // Stream response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -51,7 +49,6 @@ export async function POST(req: NextRequest) {
           max_tokens: 2048,
           messages: [{ role: "user", content: prompt }],
         });
-
         for await (const event of streamResponse) {
           if (
             event.type === "content_block_delta" &&

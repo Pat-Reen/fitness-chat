@@ -22,13 +22,9 @@ export default function WorkoutDisplay({ user, state, setState, onRegenerate, on
     setSaving(true);
     setSaveError(null);
     try {
-      const token = document.cookie.match(/session=([^;]+)/)?.[1] ?? "";
       const res = await fetch("/api/workout/save", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "workout",
           mode: state.workoutMode,

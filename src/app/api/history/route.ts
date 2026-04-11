@@ -1,16 +1,16 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getDb } from "@/lib/gcp";
 import type { WorkoutRecord } from "@/types";
 
-export async function GET(req: NextRequest) {
-  const user = await requireAuth(req);
+export async function GET() {
+  const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const db = getAdminDb();
+  const db = getDb();
   const snap = await db
     .collection("users")
-    .doc(user.uid)
+    .doc(user.email)
     .collection("workouts")
     .orderBy("createdAt", "desc")
     .limit(50)

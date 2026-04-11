@@ -1,15 +1,13 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { fetchGarminActivities } from "@/lib/garmin";
 
-export async function GET(req: NextRequest) {
-  const user = await requireAuth(req);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  }
+export async function GET() {
+  const user = await requireAuth();
+  if (!user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
   try {
-    const activities = await fetchGarminActivities(user.uid);
+    const activities = await fetchGarminActivities(user.email);
     return NextResponse.json({ activities });
   } catch (err) {
     console.error("Garmin activities error:", err);
