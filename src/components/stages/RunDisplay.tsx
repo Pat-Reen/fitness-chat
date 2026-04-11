@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import type { AppState, UserProfile } from "@/types";
+
+const PINNED_KEY = "fitness_chat_pinned";
 
 interface Props {
   user: UserProfile;
@@ -15,6 +17,28 @@ export default function RunDisplay({ user, state, onRegenerate, onReset }: Props
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [pinned, setPinned] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PINNED_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as { content: string };
+        setPinned(p.content === state.generatedContent);
+      }
+    } catch {}
+  }, [state.generatedContent]);
+
+  function handlePin() {
+    if (!state.generatedContent) return;
+    const type = state.runType !== "Any" ? `${state.runType} ` : "";
+    const title = `${state.runDistance} ${type}run`;
+    localStorage.setItem(
+      PINNED_KEY,
+      JSON.stringify({ type: "run", content: state.generatedContent, pinnedAt: Date.now(), title }),
+    );
+    setPinned(true);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -58,6 +82,18 @@ export default function RunDisplay({ user, state, onRegenerate, onReset }: Props
           className="px-4 py-2 text-xs font-medium border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
         >
           New plan
+        </button>
+        <button
+          onClick={handlePin}
+          disabled={!state.generatedContent || pinned}
+          title="Pin for offline use at the gym"
+          className={`px-4 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
+            pinned
+              ? "border-amber-300 text-amber-700 bg-amber-50"
+              : "border-gray-300 text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          {pinned ? "Pinned" : "Pin"}
         </button>
         <button
           onClick={handleSave}

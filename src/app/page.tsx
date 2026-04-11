@@ -13,6 +13,7 @@ import SelectionStage from "@/components/stages/SelectionStage";
 import EquipmentStage from "@/components/stages/EquipmentStage";
 import WorkoutDisplay from "@/components/stages/WorkoutDisplay";
 import RunDisplay from "@/components/stages/RunDisplay";
+import PinnedNavLink from "@/components/PinnedNavLink";
 
 function reducer(state: AppState, patch: Partial<AppState>): AppState {
   return { ...state, ...patch };
@@ -161,6 +162,7 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold text-[#166534]">Fitness Chat</h1>
           <div className="flex items-center gap-3">
+            <PinnedNavLink />
             <a href="/history" className="text-xs text-gray-500 hover:text-[#166534] transition-colors">History</a>
             <a href="/admin" className="text-xs text-gray-500 hover:text-[#166534] transition-colors">Admin</a>
             <button
