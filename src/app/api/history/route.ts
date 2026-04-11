@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getDb } from "@/lib/gcp";
-import type { WorkoutRecord } from "@/types";
+import { getValidFitbitToken, fetchFitbitActivities } from "@/lib/fitbit";
+import { fetchGarminActivities } from "@/lib/garmin";
+import type { WorkoutRecord, Activity } from "@/types";
 
 export async function GET() {
   const user = await requireAuth();
@@ -21,5 +23,26 @@ export async function GET() {
     ...(d.data() as Omit<WorkoutRecord, "id">),
   }));
 
-  return NextResponse.json({ records });
+  // Dates that already have a saved workout — used to deduplicate tracker activities
+  const savedDates = new Set(
+    records.map((r) => new Date(r.createdAt).toISOString().split("T")[0])
+  );
+
+  // Fetch tracker activities; suppress errors so a failed token doesn't break history
+  let trackerActivities: Activity[] = [];
+  try {
+    if (user.platform === "fitbit") {
+      const token = await getValidFitbitToken(user.email);
+      if (token) trackerActivities = await fetchFitbitActivities(token);
+    } else {
+      trackerActivities = await fetchGarminActivities(user.email);
+    }
+  } catch {
+    // Non-fatal — show history without tracker activities
+  }
+
+  // Only include tracker activities for days that have no saved workout
+  const uniqueActivities = trackerActivities.filter((a) => !savedDates.has(a.date));
+
+  return NextResponse.json({ records, trackerActivities: uniqueActivities });
 }
