@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { WorkoutRecord, Activity } from "@/types";
+import { formatActivity } from "@/lib/format-activity";
 
 type HistoryItem =
   | { kind: "workout"; record: WorkoutRecord; sortKey: number }
@@ -125,13 +126,6 @@ export default function HistoryPage() {
 
               // Tracker-only activity (no saved workout that day)
               const a = item.activity;
-              const parts = [a.type];
-              if (a.duration) parts.push(a.duration);
-              if (a.distance) parts.push(a.distance);
-              if (a.pace) parts.push(`@ ${a.pace}`);
-              if (a.heartRate) parts.push(a.heartRate);
-              if (a.calories) parts.push(`${a.calories} kcal`);
-              if (a.elevationGain) parts.push(a.elevationGain);
 
               return (
                 <li key={`activity-${i}`} className="border border-gray-100 rounded-xl p-4 bg-gray-50/60">
@@ -139,7 +133,7 @@ export default function HistoryPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-base">{activityIcon(a.type)}</span>
-                        <span className="text-xs text-gray-700 truncate">{parts.join(" · ")}</span>
+                        <span className="text-xs text-gray-700 truncate">{formatActivity(a)}</span>
                       </div>
                     </div>
                     <div className="text-right shrink-0">

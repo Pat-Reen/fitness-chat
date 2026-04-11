@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import type { AppState, UserProfile } from "@/types";
-
-const PINNED_KEY = "fitness_chat_pinned";
+import { PINNED_KEY } from "@/lib/constants";
 
 interface Props {
   user: UserProfile;

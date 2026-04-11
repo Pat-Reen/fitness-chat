@@ -1,25 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Activity, AppState, UserProfile } from "@/types";
+import type { AppState, UserProfile } from "@/types";
+import { formatActivity } from "@/lib/format-activity";
 
 interface Props {
   user: UserProfile;
   state: AppState;
   setState: (patch: Partial<AppState>) => void;
   onNext: (type: "workout" | "run") => void;
-}
-
-function formatActivity(a: Activity): string {
-  const parts = [a.type];
-  if (a.duration) parts.push(a.duration);
-  if (a.distance) parts.push(a.distance);
-  if (a.pace) parts.push(`@ ${a.pace}`);
-  if (a.heartRate) parts.push(a.heartRate);
-  if (a.calories) parts.push(`${a.calories} kcal`);
-  if (a.trainingEffect) parts.push(a.trainingEffect);
-  if (a.elevationGain) parts.push(a.elevationGain);
-  return parts.join(" · ");
 }
 
 export default function ActivityStage({ user, state, setState, onNext }: Props) {

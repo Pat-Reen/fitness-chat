@@ -2,12 +2,10 @@
 
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import type { AppState, UserProfile } from "@/types";
-
-const PINNED_KEY = "fitness_chat_pinned";
+import type { AppState } from "@/types";
+import { PINNED_KEY } from "@/lib/constants";
 
 interface Props {
-  user: UserProfile;
   state: AppState;
   onRegenerate: () => void;
   onReset: () => void;
@@ -40,7 +38,7 @@ function RunSkeleton() {
   );
 }
 
-export default function RunDisplay({ user, state, onRegenerate, onReset }: Props) {
+export default function RunDisplay({ state, onRegenerate, onReset }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

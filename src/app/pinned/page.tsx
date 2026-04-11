@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
-
-const PINNED_KEY = "fitness_chat_pinned";
+import { PINNED_KEY } from "@/lib/constants";
 
 interface PinnedWorkout {
   type: "workout" | "run";

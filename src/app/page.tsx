@@ -215,7 +215,6 @@ export default function HomePage() {
         )}
         {state.stage === "run" && (
           <RunDisplay
-            user={user}
             state={state}
             onRegenerate={() => generateRun(state.variation + 1)}
             onReset={handleReset}

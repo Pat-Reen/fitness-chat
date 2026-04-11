@@ -58,10 +58,6 @@ export const EXERCISES: Record<string, string[]> = {
     "Dumbbell Overhead Tricep Extension",
     "Tricep Dip",
     "Straight-Arm Cable Pulldown",
-    "Barbell Bench Press (Flat)",
-    "Barbell Bench Press (Incline)",
-    "Dumbbell Bench Press",
-    "Dumbbell Fly",
   ],
   "Core (Equipment)": [
     "Cable Crunch",

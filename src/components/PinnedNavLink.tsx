@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const PINNED_KEY = "fitness_chat_pinned";
+import { PINNED_KEY } from "@/lib/constants";
 
 export default function PinnedNavLink() {
   const [hasPinned, setHasPinned] = useState(false);
