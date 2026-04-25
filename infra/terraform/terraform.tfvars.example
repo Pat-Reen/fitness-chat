@@ -1,0 +1,4 @@
+project_id          = "fitness-chat-prod"
+region              = "australia-southeast1"
+github_repo         = "Pat-Reen/fitness-chat"
+fitbit_redirect_uri = "https://fitness-chat-<hash>-ts.a.run.app/"

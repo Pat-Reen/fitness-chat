@@ -289,13 +289,13 @@ def get_user_profile() -> str:
 
 FITBIT_AUTH_URL    = "https://www.fitbit.com/oauth2/authorize"
 FITBIT_TOKEN_URL   = "https://api.fitbit.com/oauth2/token"
-FITBIT_REDIRECT_URI = "https://fitnesschat.streamlit.app/"
+FITBIT_REDIRECT_URI = os.environ.get("FITBIT_REDIRECT_URI", "https://fitnesschat.streamlit.app/")
 
 
 def get_fitbit_auth_url() -> str:
     params = {
         "response_type": "code",
-        "client_id":     st.secrets["FITBIT_CLIENT_ID"],
+        "client_id":     os.environ["FITBIT_CLIENT_ID"],
         "redirect_uri":  FITBIT_REDIRECT_URI,
         "scope":         "activity heartrate",
         "expires_in":    "604800",
@@ -305,7 +305,7 @@ def get_fitbit_auth_url() -> str:
 
 def exchange_fitbit_code(code: str) -> dict:
     credentials = base64.b64encode(
-        f"{st.secrets['FITBIT_CLIENT_ID']}:{st.secrets['FITBIT_CLIENT_SECRET']}".encode()
+        f"{os.environ['FITBIT_CLIENT_ID']}:{os.environ['FITBIT_CLIENT_SECRET']}".encode()
     ).decode()
     resp = requests.post(
         FITBIT_TOKEN_URL,
@@ -378,7 +378,7 @@ def fitbit_activity_summary(activities: list) -> str:
 
 def fetch_garmin_activities() -> list:
     from garminconnect import Garmin
-    client = Garmin(st.secrets["GARMIN_NIA_EMAIL"], st.secrets["GARMIN_NIA_PASSWORD"])
+    client = Garmin(os.environ["GARMIN_NIA_EMAIL"], os.environ["GARMIN_NIA_PASSWORD"])
     client.login()
     start = (date.today() - timedelta(days=7)).isoformat()
     end   = date.today().isoformat()
