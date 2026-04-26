@@ -19,6 +19,9 @@ locals {
     "ANTHROPIC_API_KEY",
     "GARMIN_NIA_EMAIL",
     "GARMIN_NIA_PASSWORD",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "AUTH_SECRET",
   ]
 }
 
@@ -70,6 +73,31 @@ resource "google_storage_bucket" "models" {
   }
 
   depends_on = [google_project_service.apis]
+}
+
+# ---------------------------------------------------------------------------
+# GCS — exercise SVG diagrams (publicly readable; app SA has objectAdmin)
+# ---------------------------------------------------------------------------
+
+resource "google_storage_bucket" "exercise_images" {
+  name                        = "${var.project_id}-exercise-images"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = false
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_storage_bucket_iam_member" "exercise_images_public" {
+  bucket = google_storage_bucket.exercise_images.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
+
+resource "google_storage_bucket_iam_member" "app_exercise_images_admin" {
+  bucket = google_storage_bucket.exercise_images.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.app.email}"
 }
 
 # ---------------------------------------------------------------------------
@@ -204,6 +232,10 @@ output "artifact_registry_repo" {
 
 output "models_bucket" {
   value = google_storage_bucket.models.name
+}
+
+output "exercise_images_bucket" {
+  value = google_storage_bucket.exercise_images.name
 }
 
 output "workload_identity_provider" {

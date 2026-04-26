@@ -15,8 +15,8 @@ variable "github_repo" {
   default     = "Pat-Reen/fitness-chat"
 }
 
-variable "fitbit_redirect_uri" {
-  description = "OAuth redirect URI configured in the Fitbit developer app. Must match the Cloud Run service URL (or custom domain) once deployed."
+variable "app_url" {
+  description = "Public URL of the Cloud Run service (e.g. https://fitness-chat-xxx-ts.a.run.app). Used for NEXT_PUBLIC_APP_URL, NEXTAUTH_URL, and Fitbit OAuth redirect URI."
   type        = string
 }
 

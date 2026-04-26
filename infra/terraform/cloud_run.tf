@@ -1,4 +1,4 @@
-# Cloud Run service for the Streamlit app.
+# Cloud Run service for the Next.js app.
 #
 # The container image tag is produced by the GitHub Actions deploy workflow.
 # Terraform tracks only the service definition; `image` is set to a placeholder
@@ -12,6 +12,8 @@ resource "google_cloud_run_v2_service" "app" {
   template {
     service_account = google_service_account.app.email
 
+    timeout = "600s"
+
     scaling {
       min_instance_count = 0
       max_instance_count = 2
@@ -24,11 +26,25 @@ resource "google_cloud_run_v2_service" "app" {
         container_port = 8080
       }
 
+      # Plain env vars — non-sensitive config
       env {
-        name  = "FITBIT_REDIRECT_URI"
-        value = var.fitbit_redirect_uri
+        name  = "NEXT_PUBLIC_APP_URL"
+        value = var.app_url
+      }
+      env {
+        name  = "NEXTAUTH_URL"
+        value = var.app_url
+      }
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "GCS_BUCKET_NAME"
+        value = "${var.project_id}-exercise-images"
       }
 
+      # Secret-backed env vars
       dynamic "env" {
         for_each = toset([
           "FITBIT_CLIENT_ID",
@@ -36,6 +52,9 @@ resource "google_cloud_run_v2_service" "app" {
           "ANTHROPIC_API_KEY",
           "GARMIN_NIA_EMAIL",
           "GARMIN_NIA_PASSWORD",
+          "GOOGLE_CLIENT_ID",
+          "GOOGLE_CLIENT_SECRET",
+          "AUTH_SECRET",
         ])
         content {
           name = env.value
